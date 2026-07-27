@@ -54,55 +54,108 @@ function rescue() {
 
 /* ============================== HERO ==================================== */
 
+/* Sistema de entrada de la portada.
+
+   Tres reglas, y de ellas sale la sensación de conjunto:
+
+   1. Un solo eje y un solo easing. Todo sube y todo frena igual. Antes el
+      nombre entraba con muelle —que rebasa y vuelve— mientras el resto usaba
+      curvas que solo desaceleran: dos físicas distintas en la misma entrada se
+      leen como dos animaciones pegadas, no como una.
+   2. Posiciones absolutas sobre un pulso fijo. Con offsets relativos cada paso
+      arrastra la desviación del anterior, y encadenados a un muelle —cuya
+      duración la decide la física, no el parámetro— esa desviación no se puede
+      prever. Un pulso constante es lo que hace que una secuencia suene medida.
+   3. Dos recorridos en proporción 2:1 y tres duraciones. Antes había cuatro
+      distancias (46, 14, 12, 8 px) y seis duraciones sin relación entre sí.
+
+   La jerarquía la marcan el orden y la duración, no un easing aparte: el
+   nombre entra primero y es lo que más tarda. */
+const HERO = {
+  pulso: 120, // separación entre grupos
+  bloque: 24, // recorrido de un bloque
+  detalle: 12, // recorrido de un elemento de lista
+};
+
 /** Entrada escalonada de la portada. Se lanza cuando el boot ha terminado. */
 export function heroIntro() {
   const hero = document.querySelector('.hero');
-  if (!hero || reduced()) return;
+  if (!hero || reduced() || hero.dataset.motionHero) return;
+
+  // En una pestaña en segundo plano el navegador congela requestAnimationFrame.
+  // Como abajo se oculta todo antes de animarlo, la línea de tiempo no llegaría
+  // a avanzar y la portada se quedaría en blanco hasta que el visitante
+  // volviera a ella. Se espera a tenerla delante: es cuando la entrada sirve
+  // de algo.
+  if (document.hidden) {
+    const alVerse = () => {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', alVerse);
+      heroIntro();
+    };
+    document.addEventListener('visibilitychange', alVerse);
+    return;
+  }
+  hero.dataset.motionHero = '1';
 
   const pick = (sel) => [...hero.querySelectorAll(sel)];
   const lines = pick('.hero-name-line');
-  const frame = pick('.portrait-frame');
   const portrait = pick('.portrait');
   const lead = pick('.hero-lead');
   const metas = pick('.hero-meta li');
   const index = pick('.hero-index li');
+  const terrain = pick('.hero-terrain');
+
+  // Se ocultan todos de golpe, antes de empezar. Con posiciones absolutas un
+  // grupo puede entrar medio segundo tarde, y si su opacidad inicial se
+  // aplicara al arrancar su propio tramo daría un parpadeo: visible, a cero,
+  // y de vuelta.
+  const bloques = [lines, portrait, lead, metas, index, terrain].flat();
+  utils.set(bloques, { opacity: 0 });
+  // El CSS ya los retenía ocultos desde antes del primer pintado; a partir de
+  // aquí manda la línea de tiempo y la marca sobra.
+  delete html.dataset.heroHold;
 
   const tl = createTimeline({ defaults: { ease: 'outExpo' } });
   /** anime falla con listas vacías: cada paso solo entra si hay objetivo. */
   const step = (targets, params, pos) => {
     if (targets.length) tl.add(targets, params, pos);
   };
+  const t = (n) => n * HERO.pulso;
 
-  // El nombre entra con muelle: cada línea empuja a la siguiente
-  step(lines, {
-    opacity: [0, 1],
-    y: [46, 0],
-    duration: 900,
-    ease: spring({ stiffness: 120, damping: 16 }),
-    delay: stagger(90),
-  });
-  step(portrait, { opacity: [0, 1], duration: 700 }, '-=760');
-  // El retrato se revela con un barrido vertical, como una imagen que carga
+  // 1er tiempo — el nombre, línea por línea
   step(
-    frame,
-    {
-      clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'],
-      duration: 900,
-      ease: 'out(3)',
-    },
-    '-=700',
+    lines,
+    { opacity: [0, 1], y: [HERO.bloque, 0], duration: 800, delay: stagger(90) },
+    t(0),
   );
-  step(lead, { opacity: [0, 1], y: [14, 0], duration: 700 }, '-=620');
+  // 2º — el retrato. Funde y sube como un bloque más: sin barrido ni efecto
+  // propio, la foto no pide un lenguaje aparte del resto de la portada.
+  step(portrait, { opacity: [0, 1], y: [HERO.bloque, 0], duration: 700 }, t(1));
+  // 3º — el párrafo
+  step(lead, { opacity: [0, 1], y: [HERO.bloque, 0], duration: 700 }, t(2));
+  // 4º — la ficha de datos
   step(
     metas,
-    { opacity: [0, 1], x: [-12, 0], duration: 520, delay: stagger(55) },
-    '-=560',
+    { opacity: [0, 1], y: [HERO.detalle, 0], duration: 560, delay: stagger(60) },
+    t(3),
   );
+  // 5º — el índice y el paisaje cierran. El terreno solo funde: ya tiene su
+  // propio movimiento ligado al scroll y al puntero, y sumarle un
+  // desplazamiento de entrada lo haría saltar dos veces.
   step(
     index,
-    { opacity: [0, 1], y: [8, 0], duration: 420, delay: stagger(45) },
-    '-=340',
+    { opacity: [0, 1], y: [HERO.detalle, 0], duration: 520, delay: stagger(50) },
+    t(4),
   );
+  step(terrain, { opacity: [0, 1], duration: 900 }, t(4));
+
+  // Red de seguridad: ocultar por adelantado deja la portada dependiendo de que
+  // la línea de tiempo termine. Si algo la corta, el watchdog la remata. El
+  // alta se retrasa hasta pasada la entrada (~1.4 s): `rescue` también corre en
+  // cada scroll, y de darla ya, bastaría con mover la rueda a los 200 ms para
+  // que la portada saltara a su estado final a medio camino.
+  setTimeout(() => bloques.forEach((el) => pending.push({ el, anim: tl })), 2200);
 
   return tl;
 }

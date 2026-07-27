@@ -51,6 +51,31 @@ const t = useTranslations();
           }
         } catch {}
 
+        /* La portada entra animada, y ocultarla desde motion.js llega tarde:
+           el navegador ya pintó y se ve entera un instante antes de
+           desaparecer. La marca se pone aquí, antes del primer pintado, y el
+           CSS la retiene. Vive de JavaScript a propósito: sin él no existe y
+           la portada se sirve visible, que es el contrato del sitio.
+
+           Si motion.js no llegara a arrancar, nadie quitaría la marca y la
+           portada quedaría en blanco. Por eso se suelta sola a los 4 s —y solo
+           con la pestaña delante, porque en segundo plano la entrada está
+           esperando a que se la mire y soltarla ahí la haría parpadear al
+           volver. */
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          root.dataset.heroHold = '1';
+          const soltar = () => {
+            if (document.hidden) {
+              document.addEventListener('visibilitychange', () => setTimeout(soltar, 4000), {
+                once: true,
+              });
+              return;
+            }
+            delete root.dataset.heroHold;
+          };
+          addEventListener('load', () => setTimeout(soltar, 4000));
+        }
+
         if (window.__themeInit) return;
         window.__themeInit = true;
 

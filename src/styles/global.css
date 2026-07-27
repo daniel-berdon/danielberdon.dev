@@ -497,6 +497,22 @@ html[data-boot] #boot {
 
 /* --- 07 Hero + retrato dither ---------------------------------------------- */
 
+/* Retención de la entrada. La marca la pone el script en línea de la cabecera
+   —antes del primer pintado— y la quita motion.js al arrancar la línea de
+   tiempo, o el propio script en línea si esta nunca llega.
+
+   Sin `!important` a propósito: anime escribe la opacidad en el atributo
+   `style`, que gana a esta regla. Así puede animar de 0 a 1 sin esperar a que
+   la marca desaparezca, y no hay un fotograma de hueco entre las dos cosas. */
+html[data-hero-hold] .hero-name-line,
+html[data-hero-hold] .portrait,
+html[data-hero-hold] .hero-lead,
+html[data-hero-hold] .hero-meta li,
+html[data-hero-hold] .hero-index li,
+html[data-hero-hold] .hero-terrain {
+  opacity: 0;
+}
+
 .hero {
   position: relative;
   z-index: 1;
