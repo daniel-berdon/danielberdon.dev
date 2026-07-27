@@ -1,0 +1,29 @@
+---
+import { Icon } from 'astro-icon/components';
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site';
+import { useTranslations } from '../i18n/ui';
+
+const t = useTranslations();
+---
+
+<Base title={t('404.title')} description={t('404.text')} noindex>
+  <section class="notfound container" aria-labelledby="notfound-code">
+    <h1 class="notfound-code" id="notfound-code">
+      4<span class="accent">0</span>4
+    </h1>
+    <p class="notfound-label mono">ERR_NOT_FOUND // {site.domain}</p>
+
+    <!-- Traza decorativa: el JS rellena la ruta que realmente falló -->
+    <pre class="notfound-trace mono" aria-hidden="true">$ curl -I {site.domain}<span data-404-path>/…</span>
+HTTP/2 <span class="ok">404</span>
+x-razon: ruta-no-montada
+x-sugerencia: volver-al-indice</pre>
+
+    <p class="notfound-text">{t('404.text')}</p>
+    <a class="notfound-link mono" href="/">
+      <Icon class="tico" name="tabler:arrow-left" aria-hidden="true" />
+      <span class="u-draw">{t('404.link')}</span>
+    </a>
+  </section>
+</Base>

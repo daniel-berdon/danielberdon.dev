@@ -1,0 +1,160 @@
+---
+import '../styles/tokens.css';
+import '../styles/global.css';
+
+import { ClientRouter } from 'astro:transitions';
+import Seo from '../components/Seo.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { useTranslations } from '../i18n/ui';
+
+interface Props {
+  title: string;
+  description: string;
+  ogType?: 'website' | 'article';
+  jsonLd?: Record<string, unknown>;
+  noindex?: boolean;
+}
+
+const { title, description, ogType = 'website', jsonLd, noindex = false } = Astro.props;
+const t = useTranslations();
+---
+
+<!doctype html>
+<html lang="es" id="top">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!--
+      Tema sin destello: se aplica antes del primer pintado leyendo la
+      elección guardada o el sistema. Re-aplicado tras cada view transition.
+      Aquí también se decide si toca boot loader (primera visita de la sesión,
+      sin reduced motion): la marca debe existir antes de pintar.
+    -->
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+        // Con JS activo, el reveal por scroll puede ocultar hasta observar
+        root.dataset.js = '1';
+        const media = matchMedia('(prefers-color-scheme: dark)');
+        const current = () =>
+          localStorage.getItem('theme') || (media.matches ? 'dark' : 'light');
+        root.dataset.theme = current();
+
+        try {
+          if (
+            !sessionStorage.getItem('db-boot') &&
+            !matchMedia('(prefers-reduced-motion: reduce)').matches
+          ) {
+            root.dataset.boot = '1';
+          }
+        } catch {}
+
+        if (window.__themeInit) return;
+        window.__themeInit = true;
+
+        const syncToggle = () => {
+          const dark = root.dataset.theme === 'dark';
+          document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
+            btn.setAttribute('aria-pressed', String(dark));
+            const text = dark ? 'Oscuro' : 'Claro';
+            const label = btn.querySelector('[data-theme-label]');
+            if (label) label.textContent = text;
+            // Label in Name: el nombre accesible empieza por el texto visible
+            btn.setAttribute('aria-label', `${text} — pulsa para cambiar de tema`);
+          });
+        };
+
+        const announce = () =>
+          document.dispatchEvent(new CustomEvent('db:theme'));
+
+        document.addEventListener('click', (event) => {
+          const btn = event.target.closest('[data-theme-toggle]');
+          if (!btn) return;
+          const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+          root.dataset.theme = next;
+          localStorage.setItem('theme', next);
+          syncToggle();
+          announce();
+        });
+
+        document.addEventListener('astro:after-swap', () => {
+          root.dataset.theme = current();
+          syncToggle();
+        });
+        document.addEventListener('astro:page-load', syncToggle);
+        media.addEventListener('change', () => {
+          if (!localStorage.getItem('theme')) {
+            root.dataset.theme = current();
+            announce();
+          }
+        });
+      })();
+    </script>
+
+    <Seo
+      title={title}
+      description={description}
+      ogType={ogType}
+      jsonLd={jsonLd}
+      noindex={noindex}
+    />
+
+    <!-- Fuentes críticas precargadas: son el sistema de diseño -->
+    <link
+      rel="preload"
+      href="/fonts/space-grotesk-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/jetbrains-mono-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <ClientRouter />
+  </head>
+  <body>
+    <!-- Boot loader: solo primera visita de la sesión; ver 06 en global.css -->
+    <div id="boot" aria-hidden="true">
+      <div class="boot-inner">
+        <p class="boot-line" style="--i: 0">
+          <span class="boot-prompt">daniel@berdon.dev:~$</span>./init
+        </p>
+        <p class="boot-line" style="--i: 1">
+          {t('boot.ui')} <span class="boot-ok">ok</span>
+        </p>
+        <p class="boot-line" style="--i: 2">
+          {t('boot.theme')} <span class="boot-ok">ok</span>
+        </p>
+        <p class="boot-line" style="--i: 3">
+          {t('boot.portrait')} <span class="boot-ok">ok</span>
+        </p>
+        <div class="boot-bar"><i></i></div>
+        <p class="boot-tag">db.dev v2 — {t('boot.ready')}<span class="caret"></span></p>
+      </div>
+    </div>
+
+    <a class="skip-link mono" href="#contenido">{t('skip.link')}</a>
+
+    <!-- Gesto de firma: la retícula de construcción permanece visible -->
+    <div class="grid-lines" aria-hidden="true">
+      <div class="grid-lines-inner"></div>
+    </div>
+
+    <SiteHeader />
+    <main id="contenido">
+      <slot />
+    </main>
+    <SiteFooter />
+
+    <script>
+      import '../scripts/site.js';
+    </script>
+  </body>
+</html>

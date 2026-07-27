@@ -1,0 +1,40 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import { useTranslations } from '../i18n/ui';
+
+interface Props {
+  project: CollectionEntry<'proyectos'>;
+}
+
+const { project } = Astro.props;
+const { titulo, problema, rol, stack, resultado, anio } = project.data;
+const t = useTranslations();
+---
+
+<li class="row row-interactive project-row">
+  <a class="project-link" href={`/proyectos/${project.id}`}>
+    <span class="project-year mono">{anio}</span>
+    <span class="project-main">
+      <span class="project-title">{titulo}</span>
+      <span class="project-problem">{problema}</span>
+      <span class="project-meta mono">
+        <span>
+          <span class="meta-key">{t('projects.rol')}</span>
+          <span class="meta-val">{rol}</span>
+        </span>
+        <span>
+          <span class="meta-key">{t('projects.stack')}</span>
+          <span class="meta-val">{stack.join(', ')}</span>
+        </span>
+      </span>
+    </span>
+    <span class="project-side">
+      <span class="project-result">
+        <span class="project-result-label label">{t('projects.resultado')}</span>
+        <span class="project-result-text">{resultado}</span>
+      </span>
+      <Icon class="project-arrow tico" name="tabler:arrow-up-right" aria-hidden="true" />
+    </span>
+  </a>
+</li>

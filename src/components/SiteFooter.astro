@@ -1,0 +1,28 @@
+---
+import { Icon } from 'astro-icon/components';
+import { site } from '../data/site';
+import { useTranslations } from '../i18n/ui';
+
+const t = useTranslations();
+const now = new Date();
+const year = now.getFullYear();
+// Sello de compilación: el build estático congela fecha y versión reales
+const build = `${year}.${String(now.getMonth() + 1).padStart(2, '0')}`;
+---
+
+<footer class="site-footer">
+  <div class="container site-footer-inner">
+    <p>
+      © {year} {site.name} · {site.location} ·{' '}
+      <a href="/rss.xml">RSS</a>
+    </p>
+    <p class="footer-version">
+      <span aria-hidden="true">v{site.version} · build {build}</span>
+      <span class="konami-hint" title={t('footer.konami')} aria-hidden="true">↑↑↓↓←→←→BA</span>
+    </p>
+    <a class="footer-top" href="#top">
+      <span class="u-draw">{t('footer.top')}</span>
+      <Icon class="tico" name="tabler:arrow-up" aria-hidden="true" />
+    </a>
+  </div>
+</footer>

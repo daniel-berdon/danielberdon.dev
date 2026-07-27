@@ -1,0 +1,23 @@
+---
+import { Icon } from 'astro-icon/components';
+import { useTranslations } from '../i18n/ui';
+
+const t = useTranslations();
+---
+
+<!--
+  Único botón de la cabecera. El comportamiento vive en el script inline de
+  Base.astro (delegación de eventos, sin islas de framework). Sin JavaScript,
+  el tema sigue respondiendo a prefers-color-scheme.
+-->
+<button
+  type="button"
+  class="theme-toggle"
+  data-theme-toggle
+  aria-pressed="false"
+  aria-label={t('theme.toggle.aria')}
+>
+  <Icon class="tico icon-sun" name="tabler:sun" aria-hidden="true" />
+  <Icon class="tico icon-moon" name="tabler:moon-stars" aria-hidden="true" />
+  <span data-theme-label>{t('theme.toggle.light')}</span>
+</button>

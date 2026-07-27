@@ -1,0 +1,15 @@
+/* EQUIPO */
+  Desarrollador y diseñador: Daniel Berdon
+  Contacto: danielberdon.dev@gmail.com
+  Ubicación: Monterrey, N.L., México
+  LinkedIn: linkedin.com/in/daniel-berdon
+
+/* SITIO */
+  Stack: Astro · TypeScript · CSS nativo
+  Frameworks de UI: 0
+  Tipografías: Space Grotesk · JetBrains Mono (self-hosted)
+  Retrato: dithering Atkinson de 1 bit, renderizado en tu navegador
+  Easter egg: ↑↑↓↓←→←→BA
+
+/* GRACIAS POR MIRAR AQUÍ */
+  Los sitios también son para las personas que leen el código fuente.

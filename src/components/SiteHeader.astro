@@ -1,0 +1,47 @@
+---
+import { site } from '../data/site';
+import { useTranslations } from '../i18n/ui';
+import ThemeToggle from './ThemeToggle.astro';
+
+const t = useTranslations();
+const path = Astro.url.pathname;
+const isHome = path === '/';
+const inProjects = path.startsWith('/proyectos');
+const inBlog = path.startsWith('/blog');
+
+// Los enlaces de sección apuntan a las anclas de la portada desde cualquier página
+const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
+---
+
+<header class="site-header">
+  <div class="container site-header-inner">
+    <a class="brand" href="/" data-scramble>
+      <span class="brand-full"><span data-scramble-text>{site.domain.replace('.dev', '')}</span><span class="brand-tld">.dev</span></span>
+      <span class="brand-short"><span data-scramble-text>db</span><span class="brand-tld">—dev</span></span>
+    </a>
+    <nav class="site-nav" aria-label={t('nav.aria')}>
+      <a href={anchor('trayectoria')} data-spy="trayectoria" data-scramble data-tone="2">
+        {t('nav.trayectoria')}
+      </a>
+      <a
+        href={anchor('trabajo')}
+        data-spy="trabajo"
+        data-scramble
+        data-tone="3"
+        aria-current={inProjects ? 'page' : undefined}
+      >
+        {t('nav.trabajo')}
+      </a>
+      <a href={anchor('contacto')} data-spy="contacto" data-scramble data-tone="5">
+        {t('nav.contacto')}
+      </a>
+      <!-- Punto separador: los enlaces de sección a la izquierda, el blog a la derecha -->
+      <span class="nav-dot" aria-hidden="true"></span>
+      <a href="/blog" aria-current={inBlog ? 'page' : undefined} data-scramble data-tone="6">
+        {t('nav.blog')}
+      </a>
+      <ThemeToggle />
+    </nav>
+  </div>
+  <div class="scroll-progress" aria-hidden="true"></div>
+</header>

@@ -1,0 +1,34 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  id: string;
+  /** Numeración visible de la sección: "01", "02"… */
+  index: string;
+  title: string;
+  /** Icono Tabler opcional junto al título, p. ej. "tabler:briefcase" */
+  icon?: string;
+  /** Color de la paleta categórica (1–6) que etiqueta la sección */
+  tone?: number;
+}
+
+const { id, index, title, icon, tone } = Astro.props;
+---
+
+<section
+  class="section container"
+  id={id}
+  aria-labelledby={`${id}-title`}
+  style={tone ? `--tone: var(--c-${tone})` : undefined}
+>
+  <div class="section-label">
+    <span class="section-index" aria-hidden="true">{index}</span>
+    <h2 class="section-title" id={`${id}-title`}>
+      {icon && <Icon class="tico" name={icon} aria-hidden="true" />}
+      {title}
+    </h2>
+  </div>
+  <div class="section-body reveal">
+    <slot />
+  </div>
+</section>

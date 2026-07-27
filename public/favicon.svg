@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .mark { fill: #10161f; }
+    @media (prefers-color-scheme: dark) {
+      .mark { fill: #dce6f2; }
+    }
+  </style>
+  <!-- Monograma: D con la regla de acento del sitio -->
+  <text class="mark" x="6" y="40" font-family="'Space Grotesk', system-ui, sans-serif" font-weight="600" font-size="38" letter-spacing="-2">D</text>
+  <rect x="6" y="48" width="26" height="5" fill="#0e6be0"/>
+</svg>
