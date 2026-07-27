@@ -215,10 +215,17 @@ const jsonLd = {
         <h1 class="hero-name" id="hero-name">
           {
             site.name.split(' ').map((palabra, i, todas) => (
-              <span class="hero-name-line">
-                {palabra}
-                {i === todas.length - 1 && <span class="caret" aria-hidden="true" />}
-              </span>
+              <>
+                {/* El espacio va en el marcado, no solo entre etiquetas: Astro
+                    colapsa el de entre elementos y el h1 quedaba como
+                    «DanielBerdon» para buscadores y lectores de pantalla. La
+                    línea es `display: block`, así que no se ve. */}
+                {i > 0 && ' '}
+                <span class="hero-name-line">
+                  {palabra}
+                  {i === todas.length - 1 && <span class="caret" aria-hidden="true" />}
+                </span>
+              </>
             ))
           }
         </h1>
@@ -294,7 +301,7 @@ const jsonLd = {
           <span class="tick tick-br" aria-hidden="true"></span>
           <div class="portrait-frame">
             <img
-              src="/perfil-dither.png"
+              src="/perfil-dither.webp"
               alt={t('hero.portrait.alt')}
               width="2048"
               height="2048"
@@ -567,7 +574,9 @@ const jsonLd = {
             <h3 class="cap-head" id={`cap-${cap.id}`}>
               <span class="cap-letter" aria-hidden="true">
                 {String.fromCharCode(65 + i)}
-              </span>
+              </span>{' '}
+              {/* Espacio explícito: sin él el encabezado se extrae como
+                  «ADesarrollo». El contenedor es flex y no lo pinta. */}
               <span class="cap-area">{cap.data.area}</span>
             </h3>
             <p class="cap-resumen">{cap.data.resumen}</p>
