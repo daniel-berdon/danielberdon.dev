@@ -6,40 +6,52 @@ import { ClientRouter } from 'astro:transitions';
 import Seo from '../components/Seo.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
-import { useTranslations } from '../i18n/ui';
+import AppNav from '../components/AppNav.astro';
+import { useTranslations, defaultLang, type Lang } from '../i18n/ui';
 
 interface Props {
   title: string;
   description: string;
+  lang?: Lang;
   ogType?: 'website' | 'article';
   jsonLd?: Record<string, unknown>;
   noindex?: boolean;
+  /** Tarjeta de previsualización propia; ver Seo.astro */
+  image?: string;
 }
 
-const { title, description, ogType = 'website', jsonLd, noindex = false } = Astro.props;
-const t = useTranslations();
+const {
+  title,
+  description,
+  lang = defaultLang,
+  ogType = 'website',
+  jsonLd,
+  noindex = false,
+  image,
+} = Astro.props;
+const t = useTranslations(lang);
 ---
 
 <!doctype html>
-<html lang="es" id="top">
+<html lang={lang} id="top">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <!--
-      Tema sin destello: se aplica antes del primer pintado leyendo la
-      elección guardada o el sistema. Re-aplicado tras cada view transition.
-      Aquí también se decide si toca boot loader (primera visita de la sesión,
-      sin reduced motion): la marca debe existir antes de pintar.
+      Tema sin destello: se aplica antes del primer pintado. El sitio nace en
+      oscuro; solo la elección guardada del visitante lo cambia. Re-aplicado
+      tras cada view transition. Aquí también se decide si toca boot loader
+      (primera visita de la sesión, sin reduced motion): la marca debe existir
+      antes de pintar.
     -->
     <script is:inline>
       (() => {
         const root = document.documentElement;
         // Con JS activo, el reveal por scroll puede ocultar hasta observar
         root.dataset.js = '1';
-        const media = matchMedia('(prefers-color-scheme: dark)');
-        const current = () =>
-          localStorage.getItem('theme') || (media.matches ? 'dark' : 'light');
+        // Oscuro por defecto, siempre: no se consulta prefers-color-scheme
+        const current = () => localStorage.getItem('theme') || 'dark';
         root.dataset.theme = current();
 
         try {
@@ -81,13 +93,18 @@ const t = useTranslations();
 
         const syncToggle = () => {
           const dark = root.dataset.theme === 'dark';
+          // Las etiquetas del botón siguen al idioma de la página
+          const es = root.lang !== 'en';
           document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
             btn.setAttribute('aria-pressed', String(dark));
-            const text = dark ? 'Oscuro' : 'Claro';
+            const text = dark ? (es ? 'Oscuro' : 'Dark') : es ? 'Claro' : 'Light';
             const label = btn.querySelector('[data-theme-label]');
             if (label) label.textContent = text;
             // Label in Name: el nombre accesible empieza por el texto visible
-            btn.setAttribute('aria-label', `${text} — pulsa para cambiar de tema`);
+            btn.setAttribute(
+              'aria-label',
+              es ? `${text} — pulsa para cambiar de tema` : `${text} — press to toggle theme`,
+            );
           });
         };
 
@@ -104,26 +121,33 @@ const t = useTranslations();
           announce();
         });
 
+        /* El cambio de idioma se sirve con la secuencia de arranque, como la
+           primera visita: se suelta la marca de sesión justo antes de navegar
+           y la página de llegada (recarga completa) decide el boot igual que
+           siempre —sin boot bajo reduced motion. */
+        document.addEventListener('click', (event) => {
+          if (!event.target.closest('[data-lang-switch]')) return;
+          try {
+            sessionStorage.removeItem('db-boot');
+          } catch {}
+        });
+
         document.addEventListener('astro:after-swap', () => {
           root.dataset.theme = current();
           syncToggle();
         });
         document.addEventListener('astro:page-load', syncToggle);
-        media.addEventListener('change', () => {
-          if (!localStorage.getItem('theme')) {
-            root.dataset.theme = current();
-            announce();
-          }
-        });
       })();
     </script>
 
     <Seo
       title={title}
       description={description}
+      lang={lang}
       ogType={ogType}
       jsonLd={jsonLd}
       noindex={noindex}
+      image={image}
     />
 
     <!-- Fuentes críticas precargadas: son el sistema de diseño -->
@@ -172,11 +196,12 @@ const t = useTranslations();
       <div class="grid-lines-inner"></div>
     </div>
 
-    <SiteHeader />
+    <SiteHeader lang={lang} />
     <main id="contenido">
       <slot />
     </main>
-    <SiteFooter />
+    <SiteFooter lang={lang} />
+    <AppNav lang={lang} />
 
     <script>
       import '../scripts/site.js';

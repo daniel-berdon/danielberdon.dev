@@ -1,0 +1,23 @@
+---
+import { getCollection } from 'astro:content';
+import BlogPostPage from '../../../components/pages/BlogPostPage.astro';
+
+export async function getStaticPaths() {
+  // Inglés: las entradas bajo en/ (id «en/slug»); la ruta lleva solo el slug
+  const posts = (
+    await getCollection('blog', ({ id, data }) => !data.borrador && id.startsWith('en/'))
+  ).sort((a, b) => b.data.fecha.valueOf() - a.data.fecha.valueOf());
+  return posts.map((post, i) => ({
+    params: { slug: post.id.split('/').pop() },
+    props: {
+      post,
+      newer: posts[i - 1] ?? null,
+      older: posts[i + 1] ?? null,
+    },
+  }));
+}
+
+const { post, newer, older } = Astro.props;
+---
+
+<BlogPostPage post={post} newer={newer} older={older} lang="en" />

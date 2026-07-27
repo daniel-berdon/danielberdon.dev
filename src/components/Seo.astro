@@ -1,34 +1,69 @@
 ---
-import { site } from '../data/site';
+import { site, siteText } from '../data/site';
+import { switchLangPath, defaultLang, type Lang } from '../i18n/ui';
 
 interface Props {
   title: string;
   description: string;
+  lang?: Lang;
   ogType?: 'website' | 'article';
   /** JSON-LD adicional (p. ej. el grafo Person/WebSite en la portada) */
   jsonLd?: Record<string, unknown>;
   /** Páginas que no deben indexarse (404) */
   noindex?: boolean;
+  /**
+   * Tarjeta de previsualización propia, como ruta absoluta del sitio. Las
+   * entradas del blog pasan la suya —generada en el build desde el título—
+   * para no compartir todas la misma estampa al enlazarlas.
+   */
+  image?: string;
 }
 
-const { title, description, ogType = 'website', jsonLd, noindex = false } = Astro.props;
+const {
+  title,
+  description,
+  lang = defaultLang,
+  ogType = 'website',
+  jsonLd,
+  noindex = false,
+  image,
+} = Astro.props;
 
+const st = siteText[lang];
 const canonical = new URL(Astro.url.pathname, site.url).href;
-const ogImage = `${site.url}/og.png`;
-const ogImageAlt = `${site.name} — ${site.role} · ${site.domain}`;
+// Sin tarjeta propia se usa la del sitio: nunca se enlaza sin previsualización
+const ogImage = new URL(image ?? '/og.png', site.url).href;
+const ogImageAlt = image
+  ? `${title} — ${site.name}`
+  : `${site.name} — ${st.role} · ${site.domain}`;
 const fullTitle =
-  title === site.name ? `${site.name} — ${site.role}` : `${title} — ${site.name}`;
+  title === site.name ? `${site.name} — ${st.role}` : `${title} — ${site.name}`;
+
+/* Alternativas de idioma para buscadores: los slugs son idénticos entre
+   idiomas, así que la página hermana sale de cambiar el prefijo. */
+const hrefEs = new URL(switchLangPath(Astro.url.pathname, 'es'), site.url).href;
+const hrefEn = new URL(switchLangPath(Astro.url.pathname, 'en'), site.url).href;
 ---
 
 <title>{fullTitle}</title>
 <meta name="description" content={description} />
 <meta name="author" content={site.name} />
 {noindex ? <meta name="robots" content="noindex, follow" /> : <link rel="canonical" href={canonical} />}
+{
+  !noindex && (
+    <>
+      <link rel="alternate" hreflang="es" href={hrefEs} />
+      <link rel="alternate" hreflang="en" href={hrefEn} />
+      <link rel="alternate" hreflang="x-default" href={hrefEs} />
+    </>
+  )
+}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <meta name="generator" content={Astro.generator} />
-<meta name="theme-color" content="#f5f5f6" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#0d0d0f" media="(prefers-color-scheme: dark)" />
+<!-- El sitio nace en oscuro en todo dispositivo: el cromo del navegador,
+     también -->
+<meta name="theme-color" content="#0d0d0f" />
 
 <!-- Open Graph -->
 <meta property="og:type" content={ogType} />
@@ -39,7 +74,8 @@ const fullTitle =
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content={ogImageAlt} />
-<meta property="og:locale" content="es_MX" />
+<meta property="og:locale" content={lang === 'es' ? 'es_MX' : 'en_US'} />
+<meta property="og:locale:alternate" content={lang === 'es' ? 'en_US' : 'es_MX'} />
 <meta property="og:site_name" content={site.domain} />
 
 <!-- Twitter -->

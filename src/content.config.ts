@@ -6,8 +6,11 @@ import { z } from 'astro/zod';
  * Colecciones de contenido — edita solo los archivos de src/content/,
  * el marcado nunca se toca.
  *
- * Para añadir un idioma: crea src/content/proyectos/en/*.md y filtra
- * por prefijo de id en las páginas (ver src/i18n/ui.ts).
+ * Idiomas: el español vive en la raíz de cada colección y el inglés en la
+ * subcarpeta en/ con el MISMO nombre de archivo (el slug se comparte entre
+ * idiomas, así el selector de idioma solo cambia el prefijo /en). Las páginas
+ * filtran por prefijo de id. En trayectoria, el puesto en curso se marca con
+ * fin: 'Actualidad' (es) o 'Present' (en).
  */
 
 const proyectos = defineCollection({

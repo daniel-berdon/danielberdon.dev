@@ -1,14 +1,14 @@
 ---
 import { getCollection } from 'astro:content';
-import ProjectCasePage from '../../components/pages/ProjectCasePage.astro';
+import ProjectCasePage from '../../../components/pages/ProjectCasePage.astro';
 
 export async function getStaticPaths() {
-  // Español: los proyectos en la raíz de la colección (id sin prefijo)
+  // Inglés: los proyectos bajo en/ (id «en/slug»); la ruta lleva solo el slug
   const proyectos = (
-    await getCollection('proyectos', ({ id }) => !id.includes('/'))
+    await getCollection('proyectos', ({ id }) => id.startsWith('en/'))
   ).sort((a, b) => a.data.orden - b.data.orden);
   return proyectos.map((proyecto, i) => ({
-    params: { slug: proyecto.id },
+    params: { slug: proyecto.id.split('/').pop() },
     props: {
       proyecto,
       prev: proyectos[i - 1] ?? null,
@@ -20,4 +20,4 @@ export async function getStaticPaths() {
 const { proyecto, prev, next } = Astro.props;
 ---
 
-<ProjectCasePage proyecto={proyecto} prev={prev} next={next} lang="es" />
+<ProjectCasePage proyecto={proyecto} prev={prev} next={next} lang="en" />

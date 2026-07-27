@@ -1,23 +1,32 @@
 ---
 import { Icon } from 'astro-icon/components';
-import { useTranslations } from '../i18n/ui';
+import { useTranslations, defaultLang, type Lang } from '../i18n/ui';
 
-const t = useTranslations();
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = defaultLang } = Astro.props;
+const t = useTranslations(lang);
 ---
 
 <!--
   Único botón de la cabecera. El comportamiento vive en el script inline de
   Base.astro (delegación de eventos, sin islas de framework). Sin JavaScript,
-  el tema sigue respondiendo a prefers-color-scheme.
+  el sitio se queda en el tema por defecto: oscuro.
+
+  El HTML se sirve ya en el estado por defecto (oscuro, aria-pressed): si se
+  sirviera «Claro» parpadearía un instante hasta que syncToggle lo corrigiera.
+  Quien tenga guardado el tema claro verá la corrección, que es el caso raro.
 -->
 <button
   type="button"
   class="theme-toggle"
   data-theme-toggle
-  aria-pressed="false"
+  aria-pressed="true"
   aria-label={t('theme.toggle.aria')}
 >
   <Icon class="tico icon-sun" name="tabler:sun" aria-hidden="true" />
   <Icon class="tico icon-moon" name="tabler:moon-stars" aria-hidden="true" />
-  <span data-theme-label>{t('theme.toggle.light')}</span>
+  <span data-theme-label>{t('theme.toggle.dark')}</span>
 </button>

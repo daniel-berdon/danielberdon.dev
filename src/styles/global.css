@@ -367,6 +367,19 @@ html[data-scrolled] .site-header {
   box-shadow: inset 0 -1px 0 var(--nav-tone, var(--accent));
 }
 
+/* Selector de idioma: mismo tono tipográfico que la navegación, marcado con
+   un borde para leerse como conmutador y no como una sección más */
+.site-nav a.lang-switch {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  padding: 0.15rem 0.55rem;
+  line-height: 1.4;
+}
+.site-nav a.lang-switch:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
 /* Toggle de tema: botón de texto, sin iconos decorativos */
 .theme-toggle {
   display: inline-flex;
@@ -396,7 +409,10 @@ html[data-scrolled] .site-header {
   width: 0.85em;
   height: 0.85em;
 }
-/* El cromo del header se aligera por pasos antes de desbordar */
+/* En móvil el header deja de navegar: se queda con los dos conmutadores
+   —idioma y tema— y las secciones bajan a la barra de abajo (.app-nav), al
+   alcance del pulgar. Antes se iban cayendo enlaces por pasos según el ancho,
+   y el mapa del sitio dependía de la pantalla. */
 @media (max-width: 40rem) {
   .theme-toggle [data-theme-label] {
     display: none;
@@ -405,24 +421,87 @@ html[data-scrolled] .site-header {
     padding: 0.4rem 0.5rem;
   }
   .site-nav {
-    gap: 0.9rem;
+    gap: 0.6rem;
   }
-}
-@media (max-width: 30rem) {
-  /* Trayectoria sigue accesible desde el índice del hero */
-  .site-nav a[data-spy='trayectoria'] {
+  .site-nav > a:not(.lang-switch),
+  .site-nav .nav-dot {
     display: none;
   }
-  .site-nav {
-    gap: 0.75rem;
+}
+
+/* --- 05b Barra de secciones (móvil) ---------------------------------------
+   Mismo vidrio que el header —de ahí que compartan los tokens --glass-*— pero
+   flotando: separada de los bordes y con las esquinas redondeadas, para que se
+   lea como una pieza sobre el contenido y no como el final de la página. */
+.app-nav {
+  display: none;
+}
+
+@media (max-width: 40rem) {
+  .app-nav {
+    display: block;
+    position: fixed;
+    z-index: 9;
+    left: 0.75rem;
+    right: 0.75rem;
+    /* El respiro inferior respeta la barra del sistema en iOS */
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5);
+    backdrop-filter: blur(14px) saturate(1.5);
+    border: 1px solid var(--glass-line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--glass-shadow);
+  }
+  .app-nav ul {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .app-nav a {
+    display: grid;
+    justify-items: center;
+    gap: 0.2rem;
+    padding: 0.55rem 0.25rem 0.5rem;
+    border-radius: var(--r-md);
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    line-height: 1.2;
+    text-align: center;
+    transition: color var(--dur-1) var(--ease);
+  }
+  .app-nav .tico {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  /* Cada sección con su color, el mismo de su encabezado */
+  .app-nav a[data-tone='2'] { --nav-tone: var(--c-2); }
+  .app-nav a[data-tone='3'] { --nav-tone: var(--c-3); }
+  .app-nav a[data-tone='5'] { --nav-tone: var(--c-5); }
+  .app-nav a[data-tone='6'] { --nav-tone: var(--c-6); }
+  /* La sección en pantalla se tiñe entera: en una barra de iconos el subrayado
+     del header no se vería, y el color hace de indicador */
+  .app-nav a[aria-current='page'],
+  .app-nav a[data-active] {
+    color: var(--nav-tone, var(--accent-ink));
+    background: color-mix(in srgb, var(--nav-tone, var(--accent)) 12%, transparent);
+  }
+
+  /* Hueco al pie para que la barra no tape el final del documento */
+  body {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
   }
 }
-[data-theme='dark'] .icon-sun { display: none; }
-:root:not([data-theme='dark']) .icon-moon { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .icon-moon { display: block; }
-  :root:not([data-theme='light']) .icon-sun { display: none; }
-}
+/* Oscuro por defecto: se muestra la luna; el sol solo asoma con el claro
+   elegido a mano */
+.icon-sun { display: none; }
+[data-theme='light'] .icon-sun { display: block; }
+[data-theme='light'] .icon-moon { display: none; }
 
 /* --- 06 Boot loader: secuencia de arranque --------------------------------
    Solo aparece en la primera visita de la sesión y si el visitante no pide
@@ -626,17 +705,13 @@ html[data-hero-hold] .hero-terrain {
   height: 100%;
   object-fit: cover;
   display: block;
-}
-/* La imagen es una fotografía completa en halftone, no tinta sobre papel:
-   invertirla daría un negativo. En tema oscuro solo se rebaja un punto para
-   que el blanco del papel no deslumbre junto al fondo carbón. */
-[data-theme='dark'] .portrait-frame img {
+  /* La imagen es una fotografía completa en halftone, no tinta sobre papel:
+     invertirla daría un negativo. En tema oscuro (el default) solo se rebaja
+     un punto para que el blanco del papel no deslumbre junto al fondo carbón. */
   filter: brightness(0.92) contrast(1.04);
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .portrait-frame img {
-    filter: brightness(0.92) contrast(1.04);
-  }
+[data-theme='light'] .portrait-frame img {
+  filter: none;
 }
 /* Sin efecto al pasar el cursor: el retrato queda quieto */
 
@@ -659,7 +734,15 @@ html[data-hero-hold] .hero-terrain {
 }
 
 @media (max-width: 61.99rem) {
+  /* En móvil el retrato se adelanta al nombre: .hero-side se disuelve
+     (display: contents) para que retrato y ficha participen como ítems
+     sueltos de la retícula de .hero-main, y solo el retrato se reordena
+     por encima del nombre. La ficha sigue tras el texto. */
+  .hero-side {
+    display: contents;
+  }
   .portrait {
+    order: -1;
     max-width: 22rem;
   }
 }
@@ -1233,8 +1316,106 @@ html[data-hero-hold] .hero-terrain {
 
 /* --- 09b Blog: índice de entradas ------------------------------------------ */
 
-/* El blog no vive dentro de un <Section>, así que declara aquí su tono: es la
-   sección 06 y el header ya la subraya en rosa. */
+/* El blog no vive dentro de un <Section>, así que el tono se declara aquí. El
+   rosa de la sección 06 —el que el header y la barra de móvil ya usan para
+   «Blog»— queda de reserva: cada entrada recibe el suyo por estilo en línea,
+   rotando por la paleta categórica igual que las áreas de capacidades. */
+
+/* Entrada destacada. La página necesitaba una pieza principal: con una sola
+   entrada, el listado de filas dejaba una línea suelta en medio del vacío, y
+   así siempre hay algo que mirar y las demás caen debajo como archivo.
+
+   No inventa lenguaje: es el panel elevado de .cap-group —borde, --r-lg y
+   tinte del tono al pasar— con la flecha que ya usan las filas. */
+.post-hero {
+  --tone: var(--c-6);
+  display: block;
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  text-decoration: none;
+  transition:
+    background-color var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+}
+.post-hero:hover {
+  background: color-mix(in srgb, var(--tone) 8%, var(--bg-raised));
+  border-color: color-mix(in srgb, var(--tone) 35%, var(--line));
+}
+
+.post-hero-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em 1.1em;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-00);
+}
+/* La marca de «última» va en pastilla: se lee como estado, no como un dato más
+   de la línea */
+.post-hero-flag {
+  padding: 0.2em 0.7em;
+  border: 1px solid color-mix(in oklab, var(--tone) 40%, transparent);
+  border-radius: var(--r-full);
+  background: color-mix(in oklab, var(--tone) 12%, transparent);
+  color: var(--tone);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.post-hero-title {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--fs-3);
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+  max-width: 20em;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.16em;
+  transition: text-decoration-color var(--dur-2) var(--ease);
+}
+.post-hero:hover .post-hero-title {
+  text-decoration-color: var(--tone);
+}
+
+.post-hero-resumen {
+  margin: 0.7rem 0 0;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+.post-hero-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: var(--space-base) 0 0;
+  color: var(--tone);
+  font-size: var(--fs-00);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.post-hero:hover .post-arrow {
+  transform: translate(3px, -3px);
+  color: var(--tone);
+}
+
+/* Encabezado del archivo: etiqueta de sección, no un título más de la página */
+.post-list-title {
+  margin: var(--space-xl) 0 0;
+  color: var(--muted);
+  font-size: var(--fs-00);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .post-list {
   --tone: var(--c-6);
   /* En la portada la fila vive en la segunda columna de la sección y sangra
@@ -1243,7 +1424,9 @@ html[data-hero-hold] .hero-terrain {
   --row-bleed: -0.4rem;
   list-style: none;
   padding: 0;
-  margin-top: var(--space-lg);
+  /* Va justo bajo su etiqueta («Anteriores»), no suelto tras la cabecera */
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
@@ -1265,12 +1448,27 @@ html[data-hero-hold] .hero-terrain {
   }
 }
 
-.post-date {
+/* Fecha y minutaje comparten columna: apilados en escritorio —donde la
+   columna es estrecha y alta— y en línea cuando la fila se vuelve de una sola
+   columna, para no gastar dos renglones en dos datos cortos. */
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em 0.9em;
   color: var(--muted);
   padding-top: 0.35em;
   transition: color var(--dur-1) var(--ease);
 }
-.post-row:hover .post-date {
+@media (min-width: 62rem) {
+  .post-meta {
+    flex-direction: column;
+    gap: 0.25em;
+  }
+}
+.post-min {
+  color: var(--muted);
+}
+.post-row:hover .post-meta {
   color: var(--tone, var(--accent-ink));
 }
 
@@ -1934,11 +2132,20 @@ html[data-hero-hold] .hero-terrain {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm) var(--space-md);
+  /* La letra del correo se mide contra el ancho de esta fila (ver abajo) */
+  container-type: inline-size;
 }
 
 .contact-mail {
   display: inline-block;
   font-size: var(--fs-4);
+  /* El correo va siempre en una sola línea: en pantallas estrechas la letra
+     cede hasta caber en la fila en vez de partir la cadena. La cadena mide
+     14.03em con esta fuente y tracking, así que 6.85cqi la deja en ~96 % del
+     ancho disponible. La regla anterior queda de respaldo si el navegador no
+     entiende container queries. */
+  font-size: clamp(1rem, min(var(--fs-4), 6.85cqi), 2.7rem);
+  white-space: nowrap;
   font-weight: 560;
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -1948,7 +2155,6 @@ html[data-hero-hold] .hero-terrain {
   background-repeat: no-repeat;
   background-position: 0 98%;
   transition: background-size var(--dur-2) var(--ease), color var(--dur-1) var(--ease);
-  overflow-wrap: anywhere;
 }
 .contact-mail:hover {
   color: var(--accent-ink);

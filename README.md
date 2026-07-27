@@ -24,6 +24,12 @@ mantener ni base de datos que respaldar: el sitio son archivos.
 son Markdown con el frontmatter validado por Zod. Si a un proyecto le falta el
 año, el build falla — en vez de publicarse con un hueco.
 
+**Dos idiomas.** Español por defecto en la raíz e inglés bajo `/en`. Los textos
+de interfaz salen de `src/i18n/ui.ts` y los datos del sitio de
+`src/data/site.ts`; el contenido en inglés son los mismos archivos Markdown en
+la subcarpeta `en/` de cada colección, con el slug idéntico para que el
+selector de idioma solo cambie el prefijo.
+
 **CSS propio, sin framework.** Paleta, escala tipográfica, radios y curvas de
 easing salen de un solo archivo de tokens. Claro y oscuro son dos diseños
 calibrados aparte, no uno invertido.
@@ -42,11 +48,12 @@ Y hay un código Konami escondido.
 ```
 src/
 ├─ content/   proyectos, trayectoria, capacidades y blog, en Markdown
-├─ data/      identidad y datos del sitio
-├─ i18n/      textos de interfaz
+│   └─ en/    las mismas colecciones en inglés (mismo slug por archivo)
+├─ data/      identidad y datos del sitio (siteText: lo traducido)
+├─ i18n/      textos de interfaz y helpers de rutas por idioma
 ├─ styles/    tokens de diseño y estilos globales
 ├─ scripts/   lógica (site.js) y animación (motion.js)
-└─ pages/     rutas
+└─ pages/     rutas: español en la raíz, inglés bajo en/
 ```
 
 ## Licencia

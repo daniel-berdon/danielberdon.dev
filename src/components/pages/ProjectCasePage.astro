@@ -1,0 +1,125 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { render } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import Base from '../../layouts/Base.astro';
+import { site } from '../../data/site';
+import { useTranslations, localePath, defaultLang, type Lang } from '../../i18n/ui';
+
+interface Props {
+  proyecto: CollectionEntry<'proyectos'>;
+  prev: CollectionEntry<'proyectos'> | null;
+  next: CollectionEntry<'proyectos'> | null;
+  lang?: Lang;
+}
+
+const { proyecto, prev, next, lang = defaultLang } = Astro.props;
+const { titulo, problema, rol, stack, resultado, anio, cliente, enlace } =
+  proyecto.data;
+const { Content } = await render(proyecto);
+const t = useTranslations(lang);
+const slugDe = (id: string) => id.split('/').pop();
+
+const ficha = [
+  { key: t('case.rol'), value: rol },
+  { key: t('case.anio'), value: anio },
+  { key: t('case.stack'), value: stack.join(', ') },
+  { key: t('case.resultado'), value: resultado },
+];
+
+// Migas para buscadores: portada → índice de trabajo → caso
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: site.name,
+      item: site.url,
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: t('section.02.title'),
+      item: `${site.url}${localePath(lang, '/')}#trabajo`,
+    },
+    {
+      '@type': 'ListItem',
+      position: 3,
+      name: titulo,
+      item: new URL(Astro.url.pathname, site.url).href,
+    },
+  ],
+};
+---
+
+<Base title={titulo} description={problema} lang={lang} ogType="article" jsonLd={jsonLd}>
+  <article class="case container">
+    <a class="case-back mono" href={`${localePath(lang, '/')}#trabajo`}>
+      <Icon class="tico" name="tabler:arrow-left" aria-hidden="true" />
+      <span class="u-draw">{t('case.back')}</span>
+    </a>
+
+    <header class="case-header">
+      <p class="case-eyebrow mono">
+        <span class="accent">{anio}</span>
+        {cliente && <span>{cliente}</span>}
+      </p>
+      <h1 class="case-title">{titulo}</h1>
+      <p class="case-lead">{problema}</p>
+    </header>
+
+    <ul class="case-meta" aria-label="Ficha del proyecto">
+      {
+        ficha.map((item) => (
+          <li>
+            <span class="meta-key label">{item.key}</span>
+            <span class="meta-val mono">{item.value}</span>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    {
+      enlace && (
+        <p class="mono">
+          <a class="u-draw" href={enlace} rel="noopener" target="_blank">
+            {enlace.replace(/^https?:\/\//, '')}
+          </a>
+        </p>
+      )
+    }
+
+    <nav class="case-nav" aria-label="Más proyectos">
+      {
+        prev ? (
+          <a href={localePath(lang, `/proyectos/${slugDe(prev.id)}`)}>
+            <span class="case-nav-dir mono">
+              <Icon class="tico" name="tabler:arrow-left" aria-hidden="true" />
+              {t('case.prev')}
+            </span>
+            <span class="case-nav-title">{prev.data.titulo}</span>
+          </a>
+        ) : (
+          <span aria-hidden="true" />
+        )
+      }
+      {
+        next && (
+          <a href={localePath(lang, `/proyectos/${slugDe(next.id)}`)}>
+            <span class="case-nav-dir mono">
+              {t('case.next')}
+              <Icon class="tico" name="tabler:arrow-right" aria-hidden="true" />
+            </span>
+            <span class="case-nav-title">{next.data.titulo}</span>
+          </a>
+        )
+      }
+    </nav>
+  </article>
+</Base>

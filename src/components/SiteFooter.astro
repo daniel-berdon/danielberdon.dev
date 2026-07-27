@@ -1,9 +1,15 @@
 ---
 import { Icon } from 'astro-icon/components';
-import { site } from '../data/site';
-import { useTranslations } from '../i18n/ui';
+import { site, siteText } from '../data/site';
+import { useTranslations, localePath, defaultLang, type Lang } from '../i18n/ui';
 
-const t = useTranslations();
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = defaultLang } = Astro.props;
+const t = useTranslations(lang);
+const st = siteText[lang];
 const now = new Date();
 const year = now.getFullYear();
 // Sello de compilación: el build estático congela fecha y versión reales
@@ -13,8 +19,8 @@ const build = `${year}.${String(now.getMonth() + 1).padStart(2, '0')}`;
 <footer class="site-footer">
   <div class="container site-footer-inner">
     <p>
-      © {year} {site.name} · {site.location} ·{' '}
-      <a href="/rss.xml">RSS</a>
+      © {year} {site.name} · {st.location} ·{' '}
+      <a href={localePath(lang, '/rss.xml')}>RSS</a>
     </p>
     <p class="footer-version">
       <span aria-hidden="true">v{site.version} · build {build}</span>

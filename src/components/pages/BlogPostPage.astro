@@ -1,0 +1,138 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { render } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import Base from '../../layouts/Base.astro';
+import { site } from '../../data/site';
+import { minutosLectura } from '../../lib/lectura';
+import {
+  useTranslations,
+  formatDate,
+  localePath,
+  defaultLang,
+  type Lang,
+} from '../../i18n/ui';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  /** Índice de reciente a antiguo: el "nuevo" es el más reciente */
+  newer: CollectionEntry<'blog'> | null;
+  older: CollectionEntry<'blog'> | null;
+  lang?: Lang;
+}
+
+const { post, newer, older, lang = defaultLang } = Astro.props;
+const { titulo, resumen, fecha, actualizado, tags } = post.data;
+const { Content } = await render(post);
+const minutos = minutosLectura(post.body ?? '');
+const t = useTranslations(lang);
+const url = new URL(Astro.url.pathname, site.url).href;
+const slugDe = (id: string) => id.split('/').pop();
+const blogUrl = localePath(lang, '/blog');
+// Tarjeta propia de la entrada, generada en el build por src/pages/og/. El
+// idioma va dentro de esa ruta y no como prefijo del sitio: la del endpoint es
+// una sola, `/og/…`, y `localePath` la habría mandado a `/en/og/…`.
+const ogImage =
+  lang === 'en' ? `/og/en/${slugDe(post.id)}.png` : `/og/${slugDe(post.id)}.png`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'BlogPosting',
+      '@id': `${url}#post`,
+      headline: titulo,
+      description: resumen,
+      // Google pide imagen para los resultados enriquecidos de un artículo:
+      // sirve la misma tarjeta que la previsualización social
+      image: new URL(ogImage, site.url).href,
+      datePublished: fecha.toISOString(),
+      ...(actualizado && { dateModified: actualizado.toISOString() }),
+      keywords: tags.join(', '),
+      inLanguage: lang,
+      mainEntityOfPage: url,
+      author: { '@type': 'Person', name: site.legalName, url: site.url },
+      publisher: { '@type': 'Person', name: site.legalName, url: site.url },
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: site.name, item: site.url },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: t('blog.title'),
+          item: `${site.url}${blogUrl}`,
+        },
+        { '@type': 'ListItem', position: 3, name: titulo, item: url },
+      ],
+    },
+  ],
+};
+---
+
+<Base
+  title={titulo}
+  description={resumen}
+  lang={lang}
+  ogType="article"
+  jsonLd={jsonLd}
+  image={ogImage}
+>
+  <article class="case container">
+    <a class="case-back mono" href={blogUrl}>
+      <Icon class="tico" name="tabler:arrow-left" aria-hidden="true" />
+      <span class="u-draw">{t('blog.back')}</span>
+    </a>
+
+    <header class="case-header">
+      <p class="case-eyebrow mono">
+        <time class="accent" datetime={fecha.toISOString()}>{formatDate(fecha, lang)}</time>
+        <span>{minutos} {t('blog.min')}</span>
+        {actualizado && <span>{t('blog.updated')} {formatDate(actualizado, lang)}</span>}
+      </p>
+      <h1 class="case-title">{titulo}</h1>
+      <p class="case-lead">{resumen}</p>
+      {
+        tags.length > 0 && (
+          <p class="post-tags">
+            {tags.map((tag) => (
+              <span class="tag">{tag}</span>
+            ))}
+          </p>
+        )
+      }
+    </header>
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    <nav class="case-nav" aria-label={t('blog.more')}>
+      {
+        older ? (
+          <a href={localePath(lang, `/blog/${slugDe(older.id)}`)}>
+            <span class="case-nav-dir mono">
+              <Icon class="tico" name="tabler:arrow-left" aria-hidden="true" />
+              {t('blog.older')}
+            </span>
+            <span class="case-nav-title">{older.data.titulo}</span>
+          </a>
+        ) : (
+          <span aria-hidden="true" />
+        )
+      }
+      {
+        newer && (
+          <a href={localePath(lang, `/blog/${slugDe(newer.id)}`)}>
+            <span class="case-nav-dir mono">
+              {t('blog.newer')}
+              <Icon class="tico" name="tabler:arrow-right" aria-hidden="true" />
+            </span>
+            <span class="case-nav-title">{newer.data.titulo}</span>
+          </a>
+        )
+      }
+    </nav>
+  </article>
+</Base>

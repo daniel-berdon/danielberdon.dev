@@ -1,0 +1,158 @@
+---
+import { getCollection } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import Base from '../../layouts/Base.astro';
+import { site, siteText } from '../../data/site';
+import { minutosLectura } from '../../lib/lectura';
+import {
+  useTranslations,
+  formatDate,
+  localePath,
+  defaultLang,
+  type Lang,
+} from '../../i18n/ui';
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = defaultLang } = Astro.props;
+const t = useTranslations(lang);
+const st = siteText[lang];
+
+// Español en la raíz de la colección, inglés bajo en/; slugs compartidos
+const delIdioma = (id: string) =>
+  lang === 'en' ? id.startsWith('en/') : !id.includes('/');
+const slugDe = (id: string) => id.split('/').pop();
+
+const posts = (
+  await getCollection('blog', ({ id, data }) => !data.borrador && delIdioma(id))
+).sort((a, b) => b.data.fecha.valueOf() - a.data.fecha.valueOf());
+
+// El minutaje se calcula aquí y no solo dentro de la entrada: es en el listado
+// donde decide si alguien abre o no.
+//
+// El tono sale de la paleta categórica y rota sola con cada entrada nueva,
+// igual que hacen las áreas de capacidades. Se cuenta desde la más antigua
+// —no desde la primera de la lista, que va al revés— para que publicar no
+// recoloree lo ya publicado: cada entrada conserva su color para siempre y la
+// nueva simplemente toma el siguiente del ciclo.
+const TONOS = 6;
+const entradas = posts.map((post, i) => ({
+  post,
+  href: localePath(lang, `/blog/${slugDe(post.id)}`),
+  minutos: minutosLectura(post.body ?? ''),
+  tono: `--tone: var(--c-${((posts.length - 1 - i) % TONOS) + 1})`,
+}));
+
+// La más reciente se presenta aparte. Con una sola entrada el listado quedaba
+// como una fila suelta en una página vacía; así la página siempre tiene pieza
+// principal y las demás caen debajo como archivo.
+const [destacada, ...resto] = entradas;
+
+const blogUrl = localePath(lang, '/blog');
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  '@id': `${site.url}${blogUrl}#blog`,
+  url: `${site.url}${blogUrl}`,
+  name: `${site.name} — Blog`,
+  description: st.blogDescription,
+  inLanguage: lang,
+  author: { '@type': 'Person', name: site.legalName, url: site.url },
+  blogPost: posts.map((post) => ({
+    '@type': 'BlogPosting',
+    headline: post.data.titulo,
+    description: post.data.resumen,
+    datePublished: post.data.fecha.toISOString(),
+    url: `${site.url}${localePath(lang, `/blog/${slugDe(post.id)}`)}`,
+  })),
+};
+---
+
+<Base title={t('blog.title')} description={st.blogDescription} lang={lang} jsonLd={jsonLd}>
+  <section class="case container" aria-labelledby="blog-title">
+    <header class="case-header">
+      <p class="case-eyebrow mono">
+        <span class="accent">{t('blog.eyebrow')}</span>
+        <a class="u-draw" href={localePath(lang, '/rss.xml')}>
+          RSS
+          <Icon class="tico" name="tabler:rss" aria-hidden="true" />
+        </a>
+      </p>
+      <h1 class="case-title" id="blog-title">{t('blog.title')}</h1>
+      <p class="case-lead">{st.blogDescription}</p>
+    </header>
+
+    {!destacada && <p class="section-intro">{t('blog.empty')}</p>}
+
+    {
+      destacada && (
+        <a class="post-hero" href={destacada.href} style={destacada.tono}>
+          {/* Los espacios van explícitos: el hueco entre estos datos lo pone
+              el `gap` del flex, que no existe en el texto extraído —quedaba
+              «Última entrada23 de julio de 20262 min de lectura»—. Un nodo de
+              solo espacio no se pinta dentro de un contenedor flex. */}
+          <p class="post-hero-eyebrow mono">
+            <span class="post-hero-flag">{t('blog.latest')}</span>{' '}
+            <time datetime={destacada.post.data.fecha.toISOString()}>
+              {formatDate(destacada.post.data.fecha, lang)}
+            </time>{' '}
+            <span>
+              {destacada.minutos} {t('blog.min')}
+            </span>
+          </p>
+          <h2 class="post-hero-title">{destacada.post.data.titulo}</h2>
+          <p class="post-hero-resumen">{destacada.post.data.resumen}</p>
+          {destacada.post.data.tags.length > 0 && (
+            <p class="post-tags">
+              {destacada.post.data.tags.map((tag) => (
+                <span class="tag">{tag}</span>
+              ))}
+            </p>
+          )}
+          <p class="post-hero-cta mono">
+            <span class="u-draw">{t('blog.read')}</span>
+            <Icon class="post-arrow tico" name="tabler:arrow-up-right" aria-hidden="true" />
+          </p>
+        </a>
+      )
+    }
+
+    {
+      resto.length > 0 && (
+        <>
+          <h2 class="post-list-title mono">{t('blog.earlier')}</h2>
+          <ol class="post-list">
+            {resto.map(({ post, href, minutos, tono }) => (
+              <li class="row row-interactive post-row" style={tono}>
+                <a class="post-link" href={href}>
+                  <span class="post-meta mono">
+                    <time datetime={post.data.fecha.toISOString()}>
+                      {formatDate(post.data.fecha, lang)}
+                    </time>{' '}
+                    <span class="post-min">
+                      {minutos} {t('blog.min')}
+                    </span>
+                  </span>
+                  <span class="post-main">
+                    <span class="post-title">{post.data.titulo}</span>
+                    <span class="post-resumen">{post.data.resumen}</span>
+                    {post.data.tags.length > 0 && (
+                      <span class="post-tags">
+                        {post.data.tags.map((tag) => (
+                          <span class="tag">{tag}</span>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <Icon class="post-arrow tico" name="tabler:arrow-up-right" aria-hidden="true" />
+                </a>
+              </li>
+            ))}
+          </ol>
+        </>
+      )
+    }
+  </section>
+</Base>

@@ -1,16 +1,16 @@
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
-import { site, siteText } from '../data/site';
+import { site, siteText } from '../../data/site';
 
-/** Feed del blog en español. Los borradores no salen publicados. */
+/** Feed del blog en inglés. Los borradores no salen publicados. */
 export async function GET(context) {
   const posts = (
-    await getCollection('blog', ({ id, data }) => !data.borrador && !id.includes('/'))
+    await getCollection('blog', ({ id, data }) => !data.borrador && id.startsWith('en/'))
   ).sort((a, b) => b.data.fecha.valueOf() - a.data.fecha.valueOf());
 
   return rss({
     title: `${site.name} — Blog`,
-    description: siteText.es.blogDescription,
+    description: siteText.en.blogDescription,
     site: context.site ?? site.url,
     trailingSlash: false,
     items: posts.map((post) => ({
@@ -18,8 +18,8 @@ export async function GET(context) {
       description: post.data.resumen,
       pubDate: post.data.fecha,
       categories: [...post.data.tags],
-      link: `/blog/${post.id}`,
+      link: `/en/blog/${post.id.split('/').pop()}`,
     })),
-    customData: '<language>es-mx</language>',
+    customData: '<language>en-us</language>',
   });
 }

@@ -1,19 +1,22 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import { Icon } from 'astro-icon/components';
-import { useTranslations } from '../i18n/ui';
+import { useTranslations, localePath, defaultLang, type Lang } from '../i18n/ui';
 
 interface Props {
   project: CollectionEntry<'proyectos'>;
+  lang?: Lang;
 }
 
-const { project } = Astro.props;
+const { project, lang = defaultLang } = Astro.props;
 const { titulo, problema, rol, stack, resultado, anio } = project.data;
-const t = useTranslations();
+const t = useTranslations(lang);
+// El id es o bien «slug» (es) o «en/slug»: la ruta lleva solo el slug
+const slug = project.id.split('/').pop();
 ---
 
 <li class="row row-interactive project-row">
-  <a class="project-link" href={`/proyectos/${project.id}`}>
+  <a class="project-link" href={localePath(lang, `/proyectos/${slug}`)}>
     <span class="project-year mono">{anio}</span>
     <span class="project-main">
       <span class="project-title">{titulo}</span>

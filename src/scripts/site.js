@@ -11,6 +11,32 @@ import * as motion from './motion.js';
 
 const html = document.documentElement;
 
+/* Cadenas del lado del cliente, por idioma de la página (<html lang>) */
+const ES = html.lang !== 'en';
+const TEXT = {
+  crtOn: ES
+    ? 'CRT: ON — señal analógica restaurada (Esc para salir)'
+    : 'CRT: ON — analog signal restored (Esc to exit)',
+  crtOff: ES ? 'CRT: OFF — de vuelta al panel plano' : 'CRT: OFF — back to the flat panel',
+  uptimeUnits: ES
+    ? [
+        ['año', 'años'],
+        ['mes', 'meses'],
+        ['día', 'días'],
+        ['hora', 'horas'],
+        ['minuto', 'minutos'],
+        ['segundo', 'segundos'],
+      ]
+    : [
+        ['year', 'years'],
+        ['month', 'months'],
+        ['day', 'days'],
+        ['hour', 'hours'],
+        ['minute', 'minutes'],
+        ['second', 'seconds'],
+      ],
+};
+
 /* Registro por página del scroll-spy */
 const spy = { links: new Map(), sections: [] };
 
@@ -24,9 +50,11 @@ function frameCheck() {
   for (const s of sections) {
     if (s.offsetTop <= pos) currentId = s.id;
   }
-  links.forEach((link, id) => {
-    if (id === currentId) link.setAttribute('data-active', '');
-    else link.removeAttribute('data-active');
+  links.forEach((grupo, id) => {
+    grupo.forEach((link) => {
+      if (id === currentId) link.setAttribute('data-active', '');
+      else link.removeAttribute('data-active');
+    });
   });
 }
 
@@ -159,7 +187,7 @@ function bindKonami() {
       html.removeAttribute('data-crt');
       // Mismo corte de señal al apagar: el tubo no se va en silencio.
       motion.crtGlitch(document.getElementById('contenido'));
-      toast('CRT: OFF — de vuelta al panel plano');
+      toast(TEXT.crtOff);
       return;
     }
     at = e.code === seq[at] ? at + 1 : e.code === seq[0] ? 1 : 0;
@@ -167,7 +195,7 @@ function bindKonami() {
     at = 0;
     const on = html.toggleAttribute('data-crt');
     motion.crtGlitch(document.getElementById('contenido'));
-    toast(on ? 'CRT: ON — señal analógica restaurada (Esc para salir)' : 'CRT: OFF');
+    toast(on ? TEXT.crtOn : 'CRT: OFF');
   });
 }
 
@@ -229,7 +257,7 @@ function bindCopy() {
     const label = btn.querySelector('[data-copy-label]');
     const original = label ? label.textContent : '';
     btn.setAttribute('data-copied', '');
-    if (label) label.textContent = btn.dataset.copiedLabel || 'copiado ✓';
+    if (label) label.textContent = btn.dataset.copiedLabel || (ES ? 'copiado ✓' : 'copied ✓');
     setTimeout(() => {
       btn.removeAttribute('data-copied');
       if (label) label.textContent = original;
@@ -240,11 +268,16 @@ function bindCopy() {
 function consoleArt() {
   try {
     const accent = getComputedStyle(html).getPropertyValue('--accent-ink').trim() || '#4da3ff';
-    console.log(
-      '%c▄▄▄ danielberdon.dev %c v2 — gris, azul y en 1 bit\n' +
-        '%cAstro + CSS nativo · anime.js para el movimiento · fuentes self-hosted\n' +
+    const lineas = ES
+      ? 'Astro + CSS nativo · anime.js para el movimiento · fuentes self-hosted\n' +
         '¿Curioseando el código? Eso ya me cae bien: danielberdon.dev@gmail.com\n' +
-        'Pista: ↑↑↓↓←→←→BA',
+        'Pista: ↑↑↓↓←→←→BA'
+      : 'Astro + vanilla CSS · anime.js for motion · self-hosted fonts\n' +
+        'Browsing the code? I already like you: danielberdon.dev@gmail.com\n' +
+        'Hint: ↑↑↓↓←→←→BA';
+    console.log(
+      `%c▄▄▄ danielberdon.dev %c v2 — ${ES ? 'gris, azul y en 1 bit' : 'gray, blue and 1-bit'}\n` +
+        `%c${lineas}`,
       `color:${accent};font-weight:bold;font-size:14px`,
       'color:inherit;font-size:12px',
       'color:gray;font-size:12px',
@@ -331,14 +364,8 @@ function initUptime() {
 
   const pintar = () => {
     const { y, mo, d, h, mi, s } = uptimeDiff(ini, partesTZ(new Date()));
-    const u = [
-      plural(y, 'año', 'años'),
-      plural(mo, 'mes', 'meses'),
-      plural(d, 'día', 'días'),
-      plural(h, 'hora', 'horas'),
-      plural(mi, 'minuto', 'minutos'),
-      plural(s, 'segundo', 'segundos'),
-    ];
+    const valores = [y, mo, d, h, mi, s];
+    const u = TEXT.uptimeUnits.map(([uno, varios], i) => plural(valores[i], uno, varios));
     filas.forEach((fila, i) => {
       fila.textContent = u.slice(i * 2, i * 2 + 2).join(', ');
     });
@@ -349,9 +376,14 @@ function initUptime() {
 
 /* Scroll-spy: registra enlaces y secciones; frameCheck decide el activo */
 function initSpy() {
-  spy.links = new Map(
-    [...document.querySelectorAll('.site-nav a[data-spy]')].map((a) => [a.dataset.spy, a]),
-  );
+  // Una sección puede tener más de un enlace: el del header y el de la barra
+  // de móvil apuntan al mismo sitio y ambos deben marcarse.
+  spy.links = new Map();
+  document.querySelectorAll('a[data-spy]').forEach((a) => {
+    const id = a.dataset.spy;
+    if (!spy.links.has(id)) spy.links.set(id, []);
+    spy.links.get(id).push(a);
+  });
   spy.sections = [...spy.links.keys()]
     .map((id) => document.getElementById(id))
     .filter(Boolean)

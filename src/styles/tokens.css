@@ -53,14 +53,51 @@
   --dur-2: 260ms;
   --dur-3: 600ms;                             /* entradas y reveals */
 
-  /* --- Color: tema claro (gris neutro) ----------------------------------
-     El degradado del body va con background-attachment: fixed, así que su
-     posición depende de la ventana, no del documento: una misma tarjeta se
-     apoya sobre un fondo distinto según dónde esté el scroll. Con el rango
-     antiguo (250 → 233) una tarjeta a #fcfcfd quedaba +2 arriba de la página
-     y +19 abajo — la elevación cambiaba al hacer scroll. El rango va ahora
-     comprimido a 4 puntos para que --bg-raised se lea igual en todas partes.
-     La atmósfera la sigue poniendo la aurora (--glow), que no depende de esto. */
+  /* --- Color: tema oscuro (por defecto, siempre) -------------------------
+     El sitio nace en oscuro en cualquier dispositivo: no se consulta
+     prefers-color-scheme. El claro existe solo como elección explícita del
+     visitante (data-theme='light', más abajo). */
+  --bg: #0d0d0f;                   /* carbón neutro, sin azul */
+  --bg-hi: #0f0f11;
+  --bg-sunk: #0b0b0d;
+  --bg-raised: #1a1a1c;
+  --ink: #ededf0;                  /* gris muy claro */
+  --ink-soft: #b4b4ba;             /* 9.1:1 sobre --bg */
+  --muted: #8a8a92;                /* 5.5:1 sobre --bg (AA) */
+  --line: rgb(237 237 240 / 0.13);
+  --line-strong: rgb(237 237 240 / 0.36);
+  --grid-line: rgb(237 237 240 / 0.05);
+  --accent: #4da3ff;               /* mismo azul, subido de luminancia — 7.3:1 */
+  --accent-ink: #4da3ff;
+  --accent-2: #35d6e8;
+  --selection: rgb(77 163 255 / 0.28);
+
+  /* Paleta categórica: etiqueta secciones y grupos. Todas AA sobre --bg. */
+  --c-1: #4da3ff;                  /* azul    — 7.3:1 */
+  --c-2: #35d6e8;                  /* cian    — 10.7:1 */
+  --c-3: #a78bfa;                  /* violeta — 6.9:1 */
+  --c-4: #fbbf24;                  /* ámbar   — 11.3:1 */
+  --c-5: #3ecf8e;                  /* verde   — 9.5:1 */
+  --c-6: #ff8fa3;                  /* rosa    — 8.7:1 */
+  --ok: var(--c-5);                /* estado disponible / correcto */
+  --danger: var(--c-6);            /* estado de aviso */
+
+  /* Vidrio (header) y brillos */
+  --glass-bg: rgb(13 13 15 / 0.62);
+  --glass-line: rgb(237 237 240 / 0.09);
+  --glass-shadow: 0 8px 28px rgb(0 0 0 / 0.4);
+  --glow: rgb(77 163 255 / 0.045);
+
+  color-scheme: dark;
+}
+
+/* Tema claro: solo por elección explícita del visitante.
+   El degradado del body va con background-attachment: fixed, así que su
+   posición depende de la ventana, no del documento: una misma tarjeta se
+   apoya sobre un fondo distinto según dónde esté el scroll. El rango va
+   comprimido a 4 puntos para que --bg-raised se lea igual en todas partes.
+   La atmósfera la sigue poniendo la aurora (--glow), que no depende de esto. */
+[data-theme='light'] {
   --bg: #f5f5f6;                   /* gris claro sin tinte */
   --bg-hi: #f6f6f8;                /* tope claro del degradado de fondo */
   --bg-sunk: #f2f2f4;              /* plano hundido, base del degradado */
@@ -76,114 +113,12 @@
   --accent-2: #0d7490;             /* cian de apoyo en degradados */
   --selection: rgb(14 107 224 / 0.18);
 
-  /* Paleta categórica: etiqueta secciones y grupos. Todas AA sobre --bg. */
   --c-1: #0a58b8;                  /* azul    — 6.2:1 */
   --c-2: #0d7490;                  /* teal    — 4.9:1 */
   --c-3: #6d28d9;                  /* violeta — 6.5:1 */
   --c-4: #92600a;                  /* ámbar   — 5.0:1 */
   --c-5: #0c7a40;                  /* verde   — 5.0:1 */
   --c-6: #be123c;                  /* rosa    — 5.8:1 */
-  --ok: var(--c-5);                /* estado disponible / correcto */
-  --danger: var(--c-6);            /* estado de aviso */
-
-  /* Vidrio (header) y brillos */
-  --glass-bg: rgb(245 245 246 / 0.66);
-  --glass-line: rgb(19 19 22 / 0.09);
-  --glass-shadow: 0 8px 28px rgb(19 19 22 / 0.07);
-  --glow: rgb(14 107 224 / 0.035); /* aurora de fondo, casi imperceptible */
-
-  color-scheme: light;
-}
-
-/* Tema oscuro: respeta el SO cuando no hay elección guardada */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #0d0d0f;                 /* carbón neutro, sin azul */
-    --bg-hi: #0f0f11;
-    --bg-sunk: #0b0b0d;
-    --bg-raised: #1a1a1c;
-    --ink: #ededf0;                /* gris muy claro */
-    --ink-soft: #b4b4ba;           /* 9.1:1 sobre --bg */
-    --muted: #8a8a92;              /* 5.5:1 sobre --bg (AA) */
-    --line: rgb(237 237 240 / 0.13);
-    --line-strong: rgb(237 237 240 / 0.36);
-    --grid-line: rgb(237 237 240 / 0.05);
-    --accent: #4da3ff;             /* mismo azul, subido de luminancia — 7.3:1 */
-    --accent-ink: #4da3ff;
-    --accent-2: #35d6e8;
-    --selection: rgb(77 163 255 / 0.28);
-
-    --c-1: #4da3ff;                /* azul    — 7.3:1 */
-    --c-2: #35d6e8;                /* cian    — 10.7:1 */
-    --c-3: #a78bfa;                /* violeta — 6.9:1 */
-    --c-4: #fbbf24;                /* ámbar   — 11.3:1 */
-    --c-5: #3ecf8e;                /* verde   — 9.5:1 */
-    --c-6: #ff8fa3;                /* rosa    — 8.7:1 */
-
-    --glass-bg: rgb(13 13 15 / 0.62);
-    --glass-line: rgb(237 237 240 / 0.09);
-    --glass-shadow: 0 8px 28px rgb(0 0 0 / 0.4);
-    --glow: rgb(77 163 255 / 0.045);
-
-    color-scheme: dark;
-  }
-}
-
-/* Tema oscuro: elección explícita del usuario */
-[data-theme='dark'] {
-  --bg: #0d0d0f;
-  --bg-hi: #0f0f11;
-  --bg-sunk: #0b0b0d;
-  --bg-raised: #1a1a1c;
-  --ink: #ededf0;
-  --ink-soft: #b4b4ba;
-  --muted: #8a8a92;
-  --line: rgb(237 237 240 / 0.13);
-  --line-strong: rgb(237 237 240 / 0.36);
-  --grid-line: rgb(237 237 240 / 0.05);
-  --accent: #4da3ff;
-  --accent-ink: #4da3ff;
-  --accent-2: #35d6e8;
-  --selection: rgb(77 163 255 / 0.28);
-
-  --c-1: #4da3ff;
-  --c-2: #35d6e8;
-  --c-3: #a78bfa;
-  --c-4: #fbbf24;
-  --c-5: #3ecf8e;
-  --c-6: #ff8fa3;
-
-  --glass-bg: rgb(13 13 15 / 0.62);
-  --glass-line: rgb(237 237 240 / 0.09);
-  --glass-shadow: 0 8px 28px rgb(0 0 0 / 0.4);
-  --glow: rgb(77 163 255 / 0.045);
-
-  color-scheme: dark;
-}
-
-/* Elección explícita de claro (anula el media query de arriba) */
-[data-theme='light'] {
-  --bg: #f5f5f6;
-  --bg-hi: #f6f6f8;
-  --bg-sunk: #f2f2f4;
-  --bg-raised: #fdfdfe;
-  --ink: #131316;
-  --ink-soft: #45454c;
-  --muted: #6b6b73;
-  --line: rgb(19 19 22 / 0.14);
-  --line-strong: rgb(19 19 22 / 0.34);
-  --grid-line: rgb(19 19 22 / 0.05);
-  --accent: #0e6be0;
-  --accent-ink: #0a58b8;
-  --accent-2: #0d7490;
-  --selection: rgb(14 107 224 / 0.18);
-
-  --c-1: #0a58b8;
-  --c-2: #0d7490;
-  --c-3: #6d28d9;
-  --c-4: #92600a;
-  --c-5: #0c7a40;
-  --c-6: #be123c;
 
   --glass-bg: rgb(245 245 246 / 0.66);
   --glass-line: rgb(19 19 22 / 0.09);

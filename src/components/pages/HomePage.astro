@@ -1,0 +1,649 @@
+---
+import { getCollection } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import Base from '../../layouts/Base.astro';
+import Section from '../Section.astro';
+import ProjectRow from '../ProjectRow.astro';
+import { site, siteText } from '../../data/site';
+import { useTranslations, localePath, defaultLang, type Lang } from '../../i18n/ui';
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = defaultLang } = Astro.props;
+const t = useTranslations(lang);
+const st = siteText[lang];
+
+/* El español vive en la raíz de cada colección (id sin prefijo) y el inglés
+   en la subcarpeta en/ (id «en/slug»). Los slugs coinciden entre idiomas. */
+const delIdioma = (id: string) =>
+  lang === 'en' ? id.startsWith('en/') : !id.includes('/');
+
+const proyectos = (
+  await getCollection('proyectos', ({ id, data }) => data.destacado && delIdioma(id))
+).sort((a, b) => a.data.orden - b.data.orden);
+
+const trayectoria = (await getCollection('trayectoria', ({ id }) => delIdioma(id))).sort(
+  (a, b) => a.data.orden - b.data.orden,
+);
+// La línea de tiempo son los puestos. La formación es de otra naturaleza y va
+// aparte, al pie: mezclada entre empleos parecía un trabajo más.
+const puestos = trayectoria.filter((e) => e.data.tipo !== 'formacion');
+const formacion = trayectoria.filter((e) => e.data.tipo === 'formacion');
+
+// Los puestos se agrupan por empresa. En una sola lista cronológica, ALKAPONE
+// (2016 — Actualidad, freelance) caía detrás de los dos puestos de AVADA y
+// parecía el siguiente paso de la misma carrera, cuando corre en paralelo a
+// ambos. Agrupados, cada empleador es su propia vía — y de paso se ve que en
+// AVADA hubo un ascenso, que antes se leía como dos trabajos sin relación.
+const anio = (valor) => Number.parseInt(valor, 10);
+// «Puesto en curso»: el marcador es la palabra, una por idioma
+const EN_CURSO = new Set(['Actualidad', 'Present']);
+const grupos = [];
+for (const p of puestos) {
+  let grupo = grupos.find((g) => g.empresa === p.data.empresa);
+  if (!grupo) {
+    // "AVADA 360 — agencia digital" → nombre + descriptor
+    const [nombre, ...resto] = p.data.empresa.split('—');
+    grupo = {
+      empresa: p.data.empresa,
+      nombre: nombre.trim(),
+      detalle: resto.join('—').trim(),
+      puestos: [],
+    };
+    grupos.push(grupo);
+  }
+  grupo.puestos.push(p);
+}
+// Rango del grupo: del año más antiguo al más reciente de sus puestos
+for (const g of grupos) {
+  const inicios = g.puestos.map((p) => anio(p.data.inicio)).filter(Number.isFinite);
+  const fines = g.puestos.map((p) => anio(p.data.fin)).filter(Number.isFinite);
+  g.actual = g.puestos.some((p) => EN_CURSO.has(p.data.fin));
+  g.inicio = String(Math.min(...inicios));
+  g.fin = g.actual ? g.puestos.find((p) => EN_CURSO.has(p.data.fin)).data.fin : String(Math.max(...fines));
+}
+
+const capacidades = (await getCollection('capacidades', ({ id }) => delIdioma(id))).sort(
+  (a, b) => a.data.orden - b.data.orden,
+);
+
+const secciones = [
+  { href: '#sobre-mi', index: '01', titulo: t('section.01.title') },
+  { href: '#trayectoria', index: '02', titulo: t('section.02.title') },
+  { href: '#trabajo', index: '03', titulo: t('section.03.title') },
+  { href: '#capacidades', index: '04', titulo: t('section.04.title') },
+  { href: '#contacto', index: '05', titulo: t('section.05.title') },
+  { href: localePath(lang, '/blog'), index: '06', titulo: t('blog.title') },
+];
+
+// Ficha fetch: clave → valor desde los datos del sitio
+const fetchRows = Object.entries(st.fetch);
+
+// Malla de terreno en perspectiva del hero (wireframe estilo vector-scape).
+// Se proyecta aquí (en build) una cuadrícula con relieve suave a un lienzo
+// 800×280. Puro adorno, no muestra ningún dato.
+const TER_W = 800;
+const TER_H = 280;
+const TER_HORIZON = 34; // línea de fuga (arriba)
+const TER_FOCAL = 260;
+const TER_CAMH = 55; // altura de la cámara sobre el plano
+const TER_CX = TER_W / 2;
+const TER_ZNEAR = 60;
+const TER_ZFAR = 470;
+const TER_COLS = 20;
+const TER_ROWS = 15;
+const TER_XMAX = 88;
+// Relieve: suma de senos → colinas orgánicas, amplitud contenida para que las
+// filas cercanas no se crucen.
+const terHeight = (x, z) =>
+  7 * Math.sin(x * 0.05 + z * 0.03) +
+  5 * Math.sin(x * 0.11 - z * 0.017 + 1.7) +
+  3 * Math.sin(x * 0.021 + z * 0.045 + 0.4);
+const terProject = (x, z) => {
+  const h = terHeight(x, z);
+  const sx = TER_CX + (x / z) * TER_FOCAL;
+  const sy = TER_HORIZON + ((TER_CAMH - h) / z) * TER_FOCAL;
+  return `${sx.toFixed(1)},${sy.toFixed(1)}`;
+};
+// Vértices de la rejilla: verts[j][i]
+const terVerts = [];
+for (let j = 0; j <= TER_ROWS; j++) {
+  const z = TER_ZNEAR + (TER_ZFAR - TER_ZNEAR) * (j / TER_ROWS);
+  const row = [];
+  for (let i = 0; i <= TER_COLS; i++) {
+    const x = -TER_XMAX + 2 * TER_XMAX * (i / TER_COLS);
+    row.push(terProject(x, z));
+  }
+  terVerts.push(row);
+}
+// Líneas a lo ancho (una por fila de profundidad) y en fuga (una por columna).
+const terRowLines = terVerts.map((row) => row.join(' '));
+const terColLines = Array.from({ length: TER_COLS + 1 }, (_, i) =>
+  terVerts.map((row) => row[i]).join(' '),
+);
+
+// Balizas: símbolos de oficio plantados EN el terreno, no flotando sobre él.
+// Cada una se proyecta con la misma cámara que la malla, así que hereda su
+// perspectiva: las cercanas salen grandes y con el mástil largo, las lejanas
+// pequeñas y pegadas al suelo. Se colocan en coordenadas del mundo (x, z).
+const terBalizas = [
+  { s: '</>', x: -58, z: 70 },
+  { s: '{ }', x: 34, z: 92 },
+  { s: '=>', x: 80, z: 122 },
+  { s: '$_', x: -74, z: 165 },
+  { s: '~/', x: 36, z: 225 },
+  { s: '&&', x: -30, z: 300 },
+];
+const terWaypoints = terBalizas.map(({ s, x, z }) => {
+  const k = TER_FOCAL / z; // factor de escala por profundidad
+  const h = terHeight(x, z);
+  const sx = TER_CX + (x / z) * TER_FOCAL;
+  const suelo = TER_HORIZON + ((TER_CAMH - h) / z) * TER_FOCAL;
+  // Suelo mínimo de 6.5: por debajo deja de leerse como símbolo
+  const size = Math.max(6.5, 5.6 * k);
+  /* El mástil se mide en pantalla, proporcional al glifo, no en unidades del
+     mundo: con altura fija el de las balizas cercanas se disparaba y todos
+     los topes acababan amontonados contra el horizonte. */
+  const tope = suelo - size * 2.1;
+  return {
+    s,
+    x: +sx.toFixed(1),
+    suelo: +suelo.toFixed(1),
+    tope: +tope.toFixed(1),
+    size: +size.toFixed(1),
+    // Las lejanas se apagan, como el resto de la malla
+    op: +(0.3 + 0.38 * Math.min(1, k / 3)).toFixed(2),
+  };
+});
+
+const home = localePath(lang, '/');
+const personJsonLd = {
+  '@type': 'Person',
+  '@id': `${site.url}/#person`,
+  name: site.legalName,
+  alternateName: site.name,
+  url: site.url,
+  image: `${site.url}/perfil.jpg`,
+  email: `mailto:${site.email}`,
+  jobTitle: st.role,
+  worksFor: {
+    '@type': 'Organization',
+    name: 'AVADA 360',
+  },
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: 'Monterrey',
+    addressRegion: 'Nuevo León',
+    addressCountry: 'MX',
+  },
+  sameAs: [site.social.linkedin.url],
+  knowsAbout: st.knowsAbout,
+  knowsLanguage: ['es', 'en'],
+};
+
+// Grafo completo: la persona, el sitio y la portada como página de perfil
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    personJsonLd,
+    {
+      '@type': 'WebSite',
+      '@id': `${site.url}/#website`,
+      url: site.url,
+      name: site.domain,
+      description: st.description,
+      inLanguage: lang,
+      publisher: { '@id': `${site.url}/#person` },
+    },
+    {
+      '@type': 'ProfilePage',
+      '@id': `${site.url}${home}#profile`,
+      url: `${site.url}${home}`,
+      isPartOf: { '@id': `${site.url}/#website` },
+      mainEntity: { '@id': `${site.url}/#person` },
+    },
+  ],
+};
+---
+
+<Base title={site.name} description={st.description} lang={lang} jsonLd={jsonLd}>
+  <!-- ============ PORTADA ============ -->
+  <section class="hero container" aria-labelledby="hero-name">
+    <!-- Dos columnas reales: el texto llena la izquierda, el retrato y la
+         ficha comparten la derecha. Así no quedan huecos verticales. -->
+    <div class="hero-main">
+      <div class="hero-copy">
+        <h1 class="hero-name" id="hero-name">
+          {
+            site.name.split(' ').map((palabra, i, todas) => (
+              <>
+                {/* El espacio va en el marcado, no solo entre etiquetas: Astro
+                    colapsa el de entre elementos y el h1 quedaba como
+                    «DanielBerdon» para buscadores y lectores de pantalla. La
+                    línea es `display: block`, así que no se ve. */}
+                {i > 0 && ' '}
+                <span class="hero-name-line">
+                  {palabra}
+                  {i === todas.length - 1 && <span class="caret" aria-hidden="true" />}
+                </span>
+              </>
+            ))
+          }
+        </h1>
+        <p class="hero-lead">
+          <strong>{st.role}.</strong>{' '}
+          {st.tagline}
+        </p>
+
+        <!-- Escena vector-scape. Adorno, sin datos. La malla de terreno en
+             perspectiva, con balizas plantadas en el suelo: símbolos de
+             oficio que comparten la cámara con la malla, así que se ven
+             dentro del paisaje y no encima de él. Al pasar el cursor el
+             terreno se inclina; al hacer scroll, la cámara se eleva. -->
+        <div class="hero-terrain" aria-hidden="true">
+          <svg
+            class="terrain-svg"
+            viewBox="0 0 800 280"
+            preserveAspectRatio="xMidYMid meet"
+            role="presentation"
+            focusable="false"
+          >
+            <defs>
+              <linearGradient
+                id="terrainStroke"
+                gradientUnits="userSpaceOnUse"
+                x1="0"
+                y1="280"
+                x2="0"
+                y2="34"
+              >
+                <stop class="ter-stop-near" offset="0" />
+                <stop class="ter-stop-mid" offset="0.5" />
+                <stop class="ter-stop-far" offset="1" />
+              </linearGradient>
+            </defs>
+
+            <g class="terrain-mesh">
+              <g class="terrain-rows">
+                {terRowLines.map((pts) => <polyline points={pts} />)}
+              </g>
+              <g class="terrain-cols">
+                {terColLines.map((pts) => <polyline points={pts} />)}
+              </g>
+            </g>
+
+            <!-- Balizas clavadas en el suelo: mástil desde el terreno y el
+                 símbolo arriba. Ambos salen de la misma proyección que la
+                 malla, así que la perspectiva es la del paisaje. -->
+            <g class="terrain-waypoints">
+              {
+                terWaypoints.map((w) => (
+                  <g
+                    class:list={['ter-wp', w.size < 8 && 'ter-wp-lejana']}
+                    style={`--wp-op: ${w.op}; --wp-size: ${w.size}px`}
+                    data-wx={w.x}
+                    data-wy={w.tope}
+                  >
+                    <line class="wp-mast" x1={w.x} y1={w.suelo} x2={w.x} y2={w.tope} />
+                    <circle class="wp-base" cx={w.x} cy={w.suelo} r={Math.max(1, w.size / 7)} />
+                    <text class="wp-glyph" x={w.x} y={w.tope - w.size * 0.4}>{w.s}</text>
+                  </g>
+                ))
+              }
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="hero-side">
+        <!-- Retrato en dithering de 1 bit -->
+        <figure class="portrait" data-portrait>
+          <span class="tick tick-bl" aria-hidden="true"></span>
+          <span class="tick tick-br" aria-hidden="true"></span>
+          <div class="portrait-frame">
+            <img
+              src="/perfil-dither.webp"
+              alt={t('hero.portrait.alt')}
+              width="2048"
+              height="2048"
+              fetchpriority="high"
+              decoding="async"
+            />
+          </div>
+          <figcaption class="portrait-caption" aria-hidden="true">
+            <span>perfil.png · dithered <span class="cap-ok">ok</span></span>
+          </figcaption>
+        </figure>
+
+        <ul class="hero-meta">
+          <li>
+            <span class="meta-key label">
+              <Icon class="tico" name="tabler:map-pin" aria-hidden="true" />
+              {t('hero.meta.ubicacion')}
+            </span>
+            <span class="meta-value mono">
+              {st.locationShort} ({site.timezone})
+              <span class="meta-sub">{site.coordinates}</span>
+            </span>
+          </li>
+          <li>
+            <span class="meta-key label">
+              <Icon class="tico" name="tabler:activity" aria-hidden="true" />
+              {t('hero.meta.disponibilidad')}
+            </span>
+            <span class="meta-value mono status-ok">
+              <span class="dot" aria-hidden="true"></span>{st.availabilityShort}
+            </span>
+          </li>
+          <li>
+            <span class="meta-key label">
+              <Icon class="tico" name="tabler:mail" aria-hidden="true" />
+              {t('hero.meta.contacto')}
+            </span>
+            <a class="meta-value mono u-draw" href={`mailto:${site.email}`}>{site.email}</a>
+          </li>
+          <li>
+            <span class="meta-key label">
+              <Icon class="tico" name="tabler:language" aria-hidden="true" />
+              {t('hero.meta.idiomas')}
+            </span>
+            <span class="meta-value mono">{st.languages}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <nav class="hero-index" aria-label={t('hero.index')}>
+      <ol class="mono">
+        {
+          secciones.map((s) => (
+            <li>
+              <a class="u-draw" href={s.href}>
+                <span class="index-num" aria-hidden="true">
+                  {s.index}
+                </span>
+                {s.titulo}
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </nav>
+  </section>
+
+  <!-- ============ 01 / SOBRE MÍ ============ -->
+  <Section id="sobre-mi" index="01" title={t('section.01.title')} icon="tabler:terminal-2" tone={1}>
+    <div class="about-grid">
+      <div class="about-copy">
+        <p class="section-intro">{t('about.p1')}</p>
+        <p class="section-intro">{t('about.p2')}</p>
+      </div>
+
+      <!-- Columna de paneles de terminal: ficha fetch y niveles de skill -->
+      <div class="about-side">
+        <!-- Guiño neofetch: los datos duros, en el formato de un fetch de terminal -->
+        <aside class="fetch" aria-label={t('about.fetch.aria')}>
+          <p class="fetch-bar" aria-hidden="true">
+            <i></i><i></i><i></i>
+            <span>~ fetch</span>
+          </p>
+          <div class="fetch-body">
+            <p aria-hidden="true">
+              <span class="fetch-title">root</span><span class="fetch-sep">@</span><span
+                class="fetch-title">db.dev</span>
+            </p>
+            <p class="fetch-sep" aria-hidden="true">───────────</p>
+            <dl>
+              {
+                fetchRows.map(([key, value]) =>
+                  key === 'uptime' ? (
+                    <>
+                      <dt>{key}</dt>
+                      {/* El texto estático es el fallback; el script lo
+                          sustituye por el contador que corre en vivo */}
+                      <dd class="uptime" data-uptime={site.uptimeSince}>
+                        {value}
+                      </dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt>{key}</dt>
+                      <dd>{value}</dd>
+                    </>
+                  ),
+                )
+              }
+              <dt>{lang === 'es' ? 'estado' : 'status'}</dt>
+              <dd class="status-ok"><span class="dot" aria-hidden="true"></span>{st.availabilityShort}</dd>
+            </dl>
+            <!-- Tira de colores ANSI, como todo fetch que se respete. Sale de
+                 la paleta categórica del sitio, no de hex sueltos. -->
+            <div class="fetch-palette" aria-hidden="true">
+              <i style="background: var(--c-6)"></i>
+              <i style="background: var(--c-4)"></i>
+              <i style="background: var(--c-5)"></i>
+              <i style="background: var(--accent-2)"></i>
+              <i style="background: var(--accent)"></i>
+              <i style="background: var(--c-3)"></i>
+              <i style="background: var(--ink)"></i>
+              <i style="background: var(--muted)"></i>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Misma ventana de terminal: los frentes de trabajo como pills. Sin
+             nota ni barra: un 8/10 puesto por uno mismo no lo verifica nadie -->
+        <aside class="fetch" aria-label={t('about.skills.aria')}>
+          <p class="fetch-bar" aria-hidden="true">
+            <i></i><i></i><i></i>
+            <span>~ skills</span>
+          </p>
+          <div class="fetch-body">
+            <ul class="skill-list" data-skill-list>
+              {
+                st.skills.map((s) => (
+                  <li class="pill" style={`--skill-tone: ${s.tone}`}>
+                    {s.name}
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Aquí vivían tres cifras: años, casos y frentes. Las dos últimas
+         contaban lo que ya está en pantalla —las tarjetas de proyecto y las
+         pills de skills— y la primera repetía el uptime de la ficha. El
+         espacio rinde más explicando cómo se trabaja, que es lo que el
+         visitante no puede deducir mirando el sitio. El orden importa, así
+         que cada paso va numerado. -->
+    <ol class="method" aria-label={t('method.aria')}>
+      {
+        [
+          { icon: 'tabler:clipboard-search', key: '1' },
+          { icon: 'tabler:tools', key: '2' },
+          { icon: 'tabler:lifebuoy', key: '3' },
+        ].map((paso, i) => (
+          <li class="step">
+            <p class="step-head">
+              <Icon class="tico" name={paso.icon} aria-hidden="true" />
+              <span class="step-num">{String(i + 1).padStart(2, '0')}</span>
+            </p>
+            <h3 class="step-title">{t(`method.${paso.key}.title`)}</h3>
+            <p class="step-text">{t(`method.${paso.key}.text`)}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </Section>
+
+  <!-- ============ 02 / TRAYECTORIA ============ -->
+  <Section id="trayectoria" index="02" title={t('section.02.title')} icon="tabler:git-branch" tone={2}>
+    <!-- Línea de tiempo: espina continua con un nodo por puesto. El nodo del
+         puesto en curso late; los cerrados quedan huecos. La cronología es el
+         contenido de esta sección, así que se dibuja en vez de insinuarse. -->
+    <ol class="xp-list">
+      {
+        grupos.map((grupo) => (
+          <li class="xp-group">
+            <div class="xp-group-head">
+              <p class="xp-dates mono">
+                {grupo.inicio} — {grupo.fin}
+              </p>
+              <h3 class="xp-empresa mono">
+                {grupo.nombre}
+                {grupo.detalle && (
+                  <span class="xp-empresa-detalle"> · {grupo.detalle}</span>
+                )}
+              </h3>
+            </div>
+
+            <ol class="xp-roles">
+              {grupo.puestos.map((puesto) => (
+                <li
+                  class="xp-item"
+                  data-actual={EN_CURSO.has(puesto.data.fin) ? '' : undefined}
+                >
+                  {/* Si la vía tiene un solo puesto, su rango es el del grupo:
+                      repetirlo justo debajo de la cabecera es ruido. */}
+                  {grupo.puestos.length > 1 && (
+                    <p class="xp-dates mono">
+                      {puesto.data.inicio} — {puesto.data.fin}
+                    </p>
+                  )}
+                  <div class="xp-body">
+                    <h4 class="xp-role">{puesto.data.puesto}</h4>
+                    <ul class="xp-points">
+                      {puesto.data.logros.map((logro) => (
+                        <li>{logro}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </li>
+        ))
+      }
+    </ol>
+
+    {
+      formacion.length > 0 && (
+        <div class="xp-formacion">
+          <h3 class="xp-formacion-label label">{t('xp.formacion')}</h3>
+          {formacion.map((item) => (
+            <div class="xp-formacion-item">
+              <p class="xp-dates mono">
+                {item.data.inicio} — {item.data.fin}
+              </p>
+              <div class="xp-body">
+                <h4 class="xp-role">{item.data.puesto}</h4>
+                <p class="xp-company mono">{item.data.empresa}</p>
+                <ul class="xp-points">
+                  {item.data.logros.map((logro) => (
+                    <li>{logro}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+  </Section>
+
+  <!-- ============ 03 / PROYECTOS ============ -->
+  <Section id="trabajo" index="03" title={t('section.03.title')} icon="tabler:briefcase" tone={3}>
+    <ol class="project-list">
+      {proyectos.map((proyecto) => <ProjectRow project={proyecto} lang={lang} />)}
+    </ol>
+  </Section>
+
+  <!-- ============ 04 / CAPACIDADES ============ -->
+  <Section id="capacidades" index="04" title={t('section.04.title')} icon="tabler:stack-2" tone={4}>
+    <!-- Ficha técnica: una fila por área, con su letra, su resumen y su stack -->
+    <div class="caps-grid">
+      {
+        capacidades.map((cap, i) => (
+          <section
+            class="cap-group"
+            aria-labelledby={`cap-${cap.id.replace('/', '-')}`}
+            style={`--tone: var(--c-${(i % 6) + 1})`}
+          >
+            <h3 class="cap-head" id={`cap-${cap.id.replace('/', '-')}`}>
+              <span class="cap-letter" aria-hidden="true">
+                {String.fromCharCode(65 + i)}
+              </span>{' '}
+              {/* Espacio explícito: sin él el encabezado se extrae como
+                  «ADesarrollo». El contenedor es flex y no lo pinta. */}
+              <span class="cap-area">{cap.data.area}</span>
+            </h3>
+            <p class="cap-resumen">{cap.data.resumen}</p>
+            <ul class="cap-stack">
+              {cap.data.stack.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+    </div>
+  </Section>
+
+  <!-- ============ 05 / CONTACTO ============ -->
+  <Section id="contacto" index="05" title={t('section.05.title')} icon="tabler:send" tone={5}>
+    <p class="contact-cmd mono" aria-hidden="true">
+      <span class="prompt">$</span>echo "hola" | mail {site.email}
+    </p>
+    <p class="contact-lead">{t('contact.lead')}</p>
+
+    <div class="contact-mail-row">
+      <a class="contact-mail" href={`mailto:${site.email}`}>{site.email}</a>
+      <button
+        class="copy-btn"
+        type="button"
+        data-copy={site.email}
+        data-copied-label={t('contact.copied')}
+      >
+        <Icon class="tico" name="tabler:copy" aria-hidden="true" />
+        <span data-copy-label>{t('contact.copy')}</span>
+      </button>
+    </div>
+
+    <ul class="contact-links">
+      <li>
+        <a href={site.social.linkedin.url} rel="me noopener" target="_blank">
+          <span class="link-name mono">
+            <Icon class="tico" name="tabler:brand-linkedin" aria-hidden="true" />
+            {site.social.linkedin.label}
+          </span>
+          <span class="link-detail mono">
+            {site.social.linkedin.detail}
+            <Icon class="tico" name="tabler:arrow-up-right" aria-hidden="true" />
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href={site.cv.url} download>
+          <span class="link-name mono">
+            <Icon class="tico" name="tabler:file-cv" aria-hidden="true" />
+            {st.cv.label}
+          </span>
+          <span class="link-detail mono">
+            {site.cv.detail}
+            <Icon class="tico" name="tabler:download" aria-hidden="true" />
+          </span>
+        </a>
+      </li>
+    </ul>
+
+    <p class="section-intro contact-note">
+      <Icon class="tico" name="tabler:clock-hour-4" aria-hidden="true" />
+      {t('contact.note')}
+    </p>
+  </Section>
+</Base>

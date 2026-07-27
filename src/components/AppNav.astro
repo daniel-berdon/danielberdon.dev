@@ -1,0 +1,88 @@
+---
+/**
+ * Barra de secciones para móvil. En pantallas estrechas el header se queda
+ * con lo que no es navegación —idioma y tema— y las secciones bajan aquí,
+ * al alcance del pulgar.
+ *
+ * Reproduce exactamente los destinos del `.site-nav` de escritorio: la barra
+ * lo sustituye, no añade un mapa distinto del sitio según el tamaño de
+ * pantalla. Icono y tono son los mismos que ya usa cada sección en su
+ * encabezado, así que el color no es decorativo: identifica.
+ */
+import { Icon } from 'astro-icon/components';
+import {
+  useTranslations,
+  homePath,
+  localePath,
+  defaultLang,
+  type Lang,
+} from '../i18n/ui';
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = defaultLang } = Astro.props;
+const t = useTranslations(lang);
+const home = homePath(lang);
+const path = Astro.url.pathname;
+const norm = (p: string) => p.replace(/\/+$/, '') || '/';
+const isHome = norm(path) === norm(home);
+const inProjects = path.includes('/proyectos');
+const inBlog = path.includes('/blog');
+
+// Las anclas funcionan desde cualquier página: fuera de la portada, viajan a ella
+const anchor = (id: string) => (isHome ? `#${id}` : `${home}#${id}`);
+
+const items = [
+  {
+    href: anchor('trayectoria'),
+    spy: 'trayectoria',
+    icon: 'tabler:git-branch',
+    label: t('nav.trayectoria'),
+    tone: '2',
+  },
+  {
+    href: anchor('trabajo'),
+    spy: 'trabajo',
+    icon: 'tabler:briefcase',
+    label: t('nav.trabajo'),
+    tone: '3',
+    current: inProjects,
+  },
+  {
+    href: anchor('contacto'),
+    spy: 'contacto',
+    icon: 'tabler:send',
+    label: t('nav.contacto'),
+    tone: '5',
+  },
+  {
+    href: localePath(lang, '/blog'),
+    icon: 'tabler:notebook',
+    label: t('nav.blog'),
+    tone: '6',
+    current: inBlog,
+  },
+];
+---
+
+<nav class="app-nav" aria-label={t('nav.app.aria')}>
+  <ul>
+    {
+      items.map((item) => (
+        <li>
+          <a
+            href={item.href}
+            data-spy={item.spy}
+            data-tone={item.tone}
+            aria-current={item.current ? 'page' : undefined}
+          >
+            <Icon class="tico" name={item.icon} aria-hidden="true" />
+            <span>{item.label}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>

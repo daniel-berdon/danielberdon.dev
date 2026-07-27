@@ -1,21 +1,39 @@
 ---
 import { site } from '../data/site';
-import { useTranslations } from '../i18n/ui';
+import {
+  useTranslations,
+  homePath,
+  localePath,
+  switchLangPath,
+  defaultLang,
+  type Lang,
+} from '../i18n/ui';
 import ThemeToggle from './ThemeToggle.astro';
 
-const t = useTranslations();
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = defaultLang } = Astro.props;
+const t = useTranslations(lang);
+const home = homePath(lang);
 const path = Astro.url.pathname;
-const isHome = path === '/';
-const inProjects = path.startsWith('/proyectos');
-const inBlog = path.startsWith('/blog');
+const norm = (p: string) => p.replace(/\/+$/, '') || '/';
+const isHome = norm(path) === norm(home);
+const inProjects = path.includes('/proyectos');
+const inBlog = path.includes('/blog');
 
 // Los enlaces de sección apuntan a las anclas de la portada desde cualquier página
-const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
+const anchor = (id: string) => (isHome ? `#${id}` : `${home}#${id}`);
+
+// Selector de idioma: los slugs son idénticos, solo cambia el prefijo
+const otroLang: Lang = lang === 'es' ? 'en' : 'es';
+const rutaOtroLang = switchLangPath(path, otroLang);
 ---
 
 <header class="site-header">
   <div class="container site-header-inner">
-    <a class="brand" href="/" data-scramble>
+    <a class="brand" href={home} data-scramble>
       <span class="brand-full"><span data-scramble-text>{site.domain.replace('.dev', '')}</span><span class="brand-tld">.dev</span></span>
       <span class="brand-short"><span data-scramble-text>db</span><span class="brand-tld">—dev</span></span>
     </a>
@@ -37,10 +55,27 @@ const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
       </a>
       <!-- Punto separador: los enlaces de sección a la izquierda, el blog a la derecha -->
       <span class="nav-dot" aria-hidden="true"></span>
-      <a href="/blog" aria-current={inBlog ? 'page' : undefined} data-scramble data-tone="6">
+      <a
+        href={localePath(lang, '/blog')}
+        aria-current={inBlog ? 'page' : undefined}
+        data-scramble
+        data-tone="6"
+      >
         {t('nav.blog')}
       </a>
-      <ThemeToggle />
+      <!-- El cambio de idioma va con recarga completa (sin view transition):
+           la página de llegada repite la secuencia de arranque del sitio -->
+      <a
+        class="lang-switch"
+        href={rutaOtroLang}
+        hreflang={otroLang}
+        aria-label={t('nav.lang.aria')}
+        data-lang-switch
+        data-astro-reload
+      >
+        {otroLang}
+      </a>
+      <ThemeToggle lang={lang} />
     </nav>
   </div>
   <div class="scroll-progress" aria-hidden="true"></div>
