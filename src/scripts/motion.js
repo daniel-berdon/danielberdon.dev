@@ -6,14 +6,14 @@
  * ejecución. Si el módulo no carga, si anime falla o si el visitante pide
  * movimiento reducido, el contenido sigue ahí y legible.
  *
- * API usada (anime 4.5): animate, createTimeline, stagger, onScroll, spring,
- * scrambleText (anima `textContent`) y utils.
+ * API usada (anime 4.5): animate, createTimeline, stagger, spring,
+ * scrambleText (anima `textContent`) y utils. El disparo por scroll no usa
+ * el onScroll de anime: ver whenVisible.
  */
 
 import {
   animate,
   createTimeline,
-  onScroll,
   scrambleText,
   spring,
   stagger,
@@ -23,8 +23,49 @@ import {
 const html = document.documentElement;
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Selectores que se revelan al entrar en pantalla. */
-const REVEAL = '.reveal, .project-row, .xp-item, .cap-group, .stat';
+/** Selectores que se revelan al entrar en pantalla.
+ *
+ *  Se apunta a piezas, no a contenedores. El `.section-body` entero llevaba
+ *  `.reveal`: como envuelve la sección completa, en cuanto su borde superior
+ *  asomaba por abajo se revelaba de golpe todo lo que hay dentro —incluido lo
+ *  que aún quedaba a dos pantallas de distancia—. Desde el punto de vista del
+ *  visitante no había entrada ninguna: al llegar scrolleando ya estaba todo
+ *  puesto. Cada bloque tiene que disparar por su cuenta, al entrar él. */
+const REVEAL = [
+  '.reveal',
+  // Portada
+  '.section-label',
+  '.about-copy > p',
+  '.about-side .fetch',
+  '.xp-group-head',
+  '.xp-item',
+  '.project-row',
+  '.cap-group',
+  '.stat',
+  '.contact-cmd',
+  '.contact-lead',
+  '.contact-mail-row',
+  '.contact-note',
+  // Caso, blog y entrada
+  '.case-header',
+  '.case-nav',
+  '.post-hero',
+  '.post-list-title',
+  '.prose > *',
+].join(', ');
+
+/** Punto de disparo, en fracción de la ventana desde arriba.
+ *
+ *  Antes se disparaba a 80 px del borde inferior: el fundido ocurría en la
+ *  última franja de la pantalla, donde nadie mira, y para cuando el bloque
+ *  llegaba al centro ya llevaba rato opaco. Disparando más adentro el efecto
+ *  cae donde está la vista. */
+const TRIGGER = 0.82;
+
+/** Reveal suave: solo funde, sin recorrido vertical.
+ *  El texto corrido de un artículo se revela párrafo a párrafo; si cada uno
+ *  además subiera, la lectura iría dando saltos durante toda la página. */
+const REVEAL_SOFT = '.prose > *';
 
 /** Animaciones de revelado vivas, para la red de seguridad. */
 let pending = [];
@@ -163,16 +204,22 @@ export function heroIntro() {
 /* ========================= REVELADO POR SCROLL ========================== */
 
 /**
- * Dispara `run` una sola vez, cuando `el` entra en pantalla.
+ * Dispara `run` una sola vez, cuando `el` cruza la línea de disparo.
  *
- * El observador se usa como disparador, nunca como `autoplay`: si se enlaza
- * al autoplay, anime pausa la animación al salir el elemento del viewport y
- * un scroll rápido —o una etiqueta sticky— la deja congelada a medias.
- * Así, una vez arrancada, siempre termina.
+ * El disparador es un IntersectionObserver propio y no el `onScroll` de anime.
+ * Con `onScroll` los bloques se encendían nada más montarse la página, con el
+ * objetivo a varias pantallas de distancia: al llegar scrolleando ya estaba
+ * todo puesto y no se veía entrada ninguna. Aquí el umbral es un margen en
+ * píxeles sobre el viewport y no depende de que anime mida bien un contenedor.
+ *
+ * Y sigue siendo solo un disparador, nunca un `autoplay`: enlazada al scroll,
+ * la animación se pausa al salir el elemento de pantalla y un scroll rápido
+ * —o una etiqueta sticky— la deja congelada a medias. Una vez arrancada,
+ * siempre termina.
  */
 function whenVisible(el, run) {
   const box = el.getBoundingClientRect();
-  if (box.top < innerHeight * 0.92) {
+  if (box.top < innerHeight * TRIGGER) {
     run();
     return null;
   }
@@ -182,35 +229,61 @@ function whenVisible(el, run) {
     done = true;
     run();
   };
-  return onScroll({
-    target: el,
-    enter: 'bottom-=80 top',
-    repeat: false,
-    onEnter: once,
-  });
+  // Sin IntersectionObserver no hay disparo posible: se revela y a otra cosa.
+  if (typeof IntersectionObserver !== 'function') {
+    once();
+    return null;
+  }
+  // El borde inferior del viewport se recorta hasta la línea de disparo. El
+  // margen se calcula desde la altura real de la ventana, así que el efecto
+  // cae en el mismo punto de la pantalla en un móvil y en un monitor.
+  const margen = Math.round(innerHeight * (1 - TRIGGER));
+  const io = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      once();
+    },
+    { rootMargin: `0px 0px -${margen}px 0px` },
+  );
+  io.observe(el);
+  return io;
 }
 
 export function revealOnScroll() {
   const els = document.querySelectorAll(REVEAL);
   if (!els.length || reduced()) return;
+  // Misma cautela que en la portada: en una pestaña de fondo el navegador
+  // congela requestAnimationFrame, así que ocultar ahora dejaría la página en
+  // blanco hasta que el watchdog la rescatara. Se espera a tenerla delante.
+  if (document.hidden) {
+    const alVerse = () => {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', alVerse);
+      revealOnScroll();
+    };
+    document.addEventListener('visibilitychange', alVerse);
+    return;
+  }
 
   els.forEach((el) => {
     if (el.dataset.motion) return;
     el.dataset.motion = '1';
 
     // Lo que ya está en pantalla no se toca: nada de parpadeos al cargar
-    if (el.getBoundingClientRect().top < innerHeight * 0.92) return;
+    if (el.getBoundingClientRect().top < innerHeight * TRIGGER) return;
 
-    utils.set(el, { opacity: 0, y: 22 });
+    const soft = el.matches(REVEAL_SOFT);
+    utils.set(el, soft ? { opacity: 0 } : { opacity: 0, y: 22 });
     const entry = { el, anim: null };
     pending.push(entry);
     whenVisible(el, () => {
-      entry.anim = animate(el, {
-        opacity: 1,
-        y: 0,
-        duration: 720,
-        ease: 'outExpo',
-      });
+      entry.anim = animate(
+        el,
+        soft
+          ? { opacity: 1, duration: 520, ease: 'outQuad' }
+          : { opacity: 1, y: 0, duration: 720, ease: 'outExpo' },
+      );
     });
   });
 }
@@ -218,18 +291,32 @@ export function revealOnScroll() {
 /** Las tarjetas de un bloque entran en cascada cuando el bloque aparece. */
 export function staggerGroups() {
   if (reduced()) return;
+  if (document.hidden) {
+    const alVerse = () => {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', alVerse);
+      staggerGroups();
+    };
+    document.addEventListener('visibilitychange', alVerse);
+    return;
+  }
   [
     ['.caps-grid', '.cap-group'],
     ['.method', '.step'],
     ['.contact-links', 'li'],
     ['.skill-list', '.pill'],
+    // Listas de las páginas de caso y del índice del blog: entran en cascada,
+    // no una por una — son una sola unidad de lectura.
+    ['.post-list', '.post-row'],
+    ['.case-meta', 'li'],
+    ['.xp-formacion', '.xp-formacion-item'],
   ].forEach(([wrapSel, itemSel]) => {
     const wrap = document.querySelector(wrapSel);
     if (!wrap || wrap.dataset.motionGroup) return;
     wrap.dataset.motionGroup = '1';
     const items = [...wrap.querySelectorAll(itemSel)];
     if (!items.length) return;
-    if (wrap.getBoundingClientRect().top < innerHeight * 0.92) return;
+    if (wrap.getBoundingClientRect().top < innerHeight * TRIGGER) return;
 
     items.forEach((el) => {
       utils.set(el, { opacity: 0, y: 24 });

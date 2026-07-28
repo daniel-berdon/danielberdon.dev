@@ -28,7 +28,10 @@ const { id, index, title, icon, tone } = Astro.props;
       {title}
     </h2>
   </div>
-  <div class="section-body reveal">
+  <!-- Sin `.reveal`: el revelado va pieza a pieza (ver REVEAL en motion.js).
+       Marcado aquí, el bloque entero se encendía en cuanto asomaba la sección
+       y nada de lo de dentro llegaba a entrar. -->
+  <div class="section-body">
     <slot />
   </div>
 </section>
